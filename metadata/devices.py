@@ -51,15 +51,6 @@ class CameraInformation:
         self.aperture = aperture
         self.exposure_time = exposure_time
 
-    def add_from_cam_info(self, camera_info_obj):
-        self.height = camera_info_obj.height
-        self.width = camera_info_obj.width
-        self.camera_mtx = camera_info_obj.cam_matrix
-        self.distortion_mtx = camera_info_obj.dist_coeff
-        self.rectification_mtx = camera_info_obj.rect_matrix
-        self.projection_mtx = camera_info_obj.proj_matrix
-        # self.region_of_interest = camera_info_obj.roi
-
     def to_bytes(self) -> bytes:
         info_bytes = dill.dumps(self)
         info_bytes_len = len(info_bytes).to_bytes(4, 'big')
@@ -82,17 +73,6 @@ class LidarInformation:
         self.phase_lock_offset = None
         self.lidar_to_sensor_transform = None
         self.type = None
-
-    def add_from_lidar_info(self, laser_info_obj):
-        data_dict = json.loads(laser_info_obj.data)
-        self.beam_altitude_angles = data_dict["beam_intrinsics"]["beam_altitude_angles"]
-        self.beam_azimuth_angles = data_dict["beam_intrinsics"]["beam_azimuth_angles"]
-        self.lidar_origin_to_beam_origin_mm = data_dict["beam_intrinsics"]["lidar_origin_to_beam_origin_mm"]
-        self.columns_per_frame = data_dict["lidar_data_format"]["columns_per_frame"]
-        self.pixels_per_column = data_dict["lidar_data_format"]["pixels_per_column"]
-        self.phase_lock_offset = data_dict["config_params"]["phase_lock_offset"]
-        self.lidar_to_sensor_transform = data_dict["lidar_intrinsics"]["lidar_to_sensor_transform"]
-        self.type = data_dict["sensor_info"]["prod_line"]
 
     def to_bytes(self) -> bytes:
         info_bytes = dill.dumps(self)
