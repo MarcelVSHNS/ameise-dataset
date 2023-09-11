@@ -7,3 +7,4 @@ exclude .gitignore
 exclude .gitattributes
 exclude __pycache__/
 exclude tests
+exclude docs
