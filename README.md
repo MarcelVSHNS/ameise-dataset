@@ -1,5 +1,7 @@
 # AMEISE Dataset
 
+![AmeiseLogo](docs/Ameise_logo.png) 
+
 Dev-Kit for [Project AMEISE](https://ameise.wandelgesellschaft.de/) records: 
 
 ## Description
@@ -17,5 +19,5 @@ pip install ameise
 
 ## Getting Started
 
-To get started with the dataset, you can refer to the [GettingStarted.ipynb](https://github.com/MarcelVSHNS/ameise-dataset/blob/main/GettingStarted.ipynb) notebook provided in the repository. 
+To get started with the dataset, you can refer to the [GettingStarted.ipynb](/GettingStarted.ipynb) notebook provided in the repository. 
 This notebook will guide you through the basic functionalities and usage of the dataset.
