@@ -10,11 +10,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setup(
-    name='ameise-percept-dataset',
-    version='0.1.1',
+    name='ameise',
+    version='0.1',
     packages=find_packages(),
     include_package_data=True,
-    py_modules=["AmeiseDataset"],
     install_requires=requirements,
     python_requires='>=3.7',
     url='https://github.com/MarcelVSHNS/ameise-dataset.git',
