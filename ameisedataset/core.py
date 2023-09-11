@@ -1,7 +1,8 @@
 import dill
 import hashlib
+import os
 
-from ameisedataset.metadata import CameraInformation, LidarInformation, Camera, Lidar, Frame
+from ameisedataset.metadata import CameraInformation, LidarInformation, Camera, Lidar, Frame, Infos
 
 
 def compute_checksum(data):
@@ -10,8 +11,9 @@ def compute_checksum(data):
 
 
 def unpack_record(filename) -> []:
+    assert os.path.splitext(filename)[1] == ".4mse", "This is not a correct AMEISE-Record file."
     frames = []
-    infos = []
+    meta_infos = Infos(filename)
     with open(filename, 'rb') as file:
         # 1. Read the length of the header
         header_length = int.from_bytes(file.read(4), 'big')
@@ -28,9 +30,9 @@ def unpack_record(filename) -> []:
                 raise ValueError(f"Checksum of {name} is not correct! Check file.")
             # Deserialisiere das Info-Objekt
             if Camera.is_type_of(name.upper()):
-                infos.append(CameraInformation.from_bytes(info_bytes))
+                meta_infos.camera[Camera[name.upper()]] = CameraInformation.from_bytes(info_bytes)
             elif Lidar.is_type_of(name.upper()):
-                infos.append(LidarInformation.from_bytes(info_bytes))
+                meta_infos.lidar[Lidar[name.upper()]] = LidarInformation.from_bytes(info_bytes)
 
         # 4. Read the total length of frames/ payload e.g. 146
         num_frames = int.from_bytes(file.read(4), 'big')
@@ -45,5 +47,8 @@ def unpack_record(filename) -> []:
             # Verify checksum
             if compute_checksum(compressed_data) != compressed_data_checksum:
                 raise ValueError("Checksum mismatch. Data might be corrupted!")
-            frames.append(Frame.from_bytes(compressed_data))
-    return infos, frames
+
+            frames.append(Frame.from_bytes(compressed_data,
+                                           img_shape=meta_infos.camera[Camera.STEREO_LEFT].shape,
+                                           pts_dtype=meta_infos.lidar[Lidar.OS1_TOP].dtype))
+    return meta_infos, frames
