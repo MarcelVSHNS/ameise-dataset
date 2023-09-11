@@ -1,0 +1,8 @@
+include LICENSE
+include README.md
+include AmeiseDataset.py
+exclude GettingStarted.ipynb
+exclude samples/*.4mse
+exclude venv/*
+exclude .gitignore
+exclude .gitattributes

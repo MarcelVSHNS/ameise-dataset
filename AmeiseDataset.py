@@ -4,8 +4,8 @@ import zlib
 import json
 import numpy as np
 
-from metadata.devices import CameraInformation, Image, LidarInformation, Points
-from metadata.names import Camera, Lidar
+from metadata import CameraInformation, Image, LidarInformation, Points
+from metadata import Camera, Lidar
 
 
 def compute_checksum(data):
