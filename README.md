@@ -1,10 +1,13 @@
 # AMEISE Dataset
+
 ## Description
+
 The ameise-dataset is a development kit for the AMEISE dataset. It provides functionalities to unpack AMEISE record 
 files and extract meta information and frames. The core functionality revolves around handling AMEISE record files 
 with the .4mse extension.
 ---
 ## Installation
+
 To install the ameise-dataset, you can use pip:
 ```console
 pip install ameise
