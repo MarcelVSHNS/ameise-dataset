@@ -1,2 +1,4 @@
 dill
 numpy
+opencv-python
+Pillow

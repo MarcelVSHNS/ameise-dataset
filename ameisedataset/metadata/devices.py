@@ -3,6 +3,8 @@ import dill
 import json
 from typing import List, Tuple
 
+import numpy as np
+
 from ameisedataset.miscellaneous import compute_checksum, INT_LENGTH, NUM_CAMERAS, NUM_LIDAR
 
 
@@ -56,6 +58,7 @@ class CameraInformation:
         self.focal_length: int = focal_length
         self.aperture: int = aperture
         self.exposure_time: int = exposure_time
+        self.extrinsic: Pose = Pose()   # Transformation to Top_Lidar
 
     def add_from_ros_cam_info(self, camera_info_obj):
         """ Populate the CameraInformation attributes from a ROS (Roboter Operating System) camera info object.
@@ -119,6 +122,7 @@ class LidarInformation:
         self.phase_lock_offset = None
         self.lidar_to_sensor_transform = None
         self.type = None
+        self.extrinsic: Pose = Pose()
 
     def add_from_ros_lidar_info(self, laser_info_obj):
         """ Populate the LidarInformation attributes from a ROS (Roboter Operating System) LiDAR info object.
@@ -154,3 +158,9 @@ class LidarInformation:
             LidarInformation: A LidarInformation instance populated with the provided byte data.
         """
         return dill.loads(info_data)
+
+
+class Pose:
+    def __init__(self):
+        self.xyz: np.array = np.array([])
+        self.rpy: np.array = np.array([])

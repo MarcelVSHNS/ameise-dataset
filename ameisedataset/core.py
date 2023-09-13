@@ -2,6 +2,7 @@ import dill
 import os
 from typing import List, Tuple
 
+import ameisedataset.utils.transformation
 from ameisedataset.metadata import CameraInformation, LidarInformation, Camera, Lidar, Frame, Infos
 from ameisedataset.miscellaneous import compute_checksum, InvalidFileTypeError, ChecksumError, SHA256_CHECKSUM_LENGTH, INT_LENGTH
 
@@ -63,3 +64,8 @@ def unpack_record(filename) -> Tuple[Infos, List[Frame]]:
         for _ in range(num_frames):
             frames.append(_read_frame_object(file, meta_infos))
     return meta_infos, frames
+
+
+# proj_top_left = ameisedataset.get_projection_matrix(Lidar.OS1_TOP, Camera.STEREO_LEFT)              # get projection mtx (4000, 3) idx, x, y
+# proj_point_list = ameisedataset.merge_projection_with_pcloud(Frame.lidar.points, proj_top_left)     # delete all points but image an add proj
+# 4000, 11

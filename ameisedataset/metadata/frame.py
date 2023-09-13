@@ -56,6 +56,12 @@ class Image:
             "timestamp": ""
         }
 
+    def __getattr__(self, attr) -> PilImage:
+        """Greift auf Attribute des inneren PIL-Image-Objekts zu, wenn sie in dieser Klasse nicht vorhanden sind."""
+        if hasattr(self.image, attr):
+            return getattr(self.image, attr)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
+
     def get_timestamp(self, utc=2):
         """ Get the UTC timestamp of the image.
         Args:
@@ -116,16 +122,16 @@ class Frame:
     Attributes:
         frame_id (int): Unique identifier for the frame.
         timestamp (str): Timestamp associated with the frame.
-        images (List[Image]): List of images associated with the frame.
-        points (List[Points]): List of point data associated with the frame.
+        cameras (List[Image]): List of images associated with the frame.
+        lidar (List[Points]): List of point data associated with the frame.
     Methods:
         from_bytes: Class method to create a Frame instance from compressed byte data.
     """
     def __init__(self, frame_id: int, timestamp: str):
         self.frame_id: int = frame_id
         self.timestamp: str = timestamp
-        self.images: List[Image] = [Image()] * NUM_CAMERAS
-        self.points: List[Points] = [Points()] * NUM_LIDAR
+        self.cameras: List[Image] = [Image()] * NUM_CAMERAS
+        self.lidar: List[np.array] = [np.array([])] * NUM_LIDAR
 
     @classmethod
     def from_bytes(cls, compressed_data, pts_dtype):
@@ -159,8 +165,8 @@ class Frame:
                 exif_data = decompressed_data[offset:offset + exif_len]
                 offset += exif_len
                 # Create Image instance and store it in the frame instance
-                frame_instance.images[Camera[info_name.upper()]] = Image.from_bytes(info_name, camera_img_bytes,
-                                                                                    exif_data)
+                frame_instance.cameras[Camera[info_name.upper()]] = Image.from_bytes(info_name, camera_img_bytes,
+                                                                                     exif_data)
             # Check if the info name corresponds to a Lidar type
             elif Lidar.is_type_of(info_name.upper()):
                 # Extract points length and data
@@ -169,7 +175,6 @@ class Frame:
                 laser_pts_bytes = decompressed_data[offset:offset + pts_len]
                 offset += pts_len
                 # Create Points instance and store it in the frame instance
-                frame_instance.points[Lidar[info_name.upper()]] = Points.from_bytes(info_name, laser_pts_bytes,
-                                                                                    pts_dtype)
+                frame_instance.lidar[Lidar[info_name.upper()]] = np.frombuffer(laser_pts_bytes, dtype=pts_dtype)
         # Return the fully populated frame instance
         return frame_instance
