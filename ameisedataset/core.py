@@ -25,7 +25,7 @@ def _read_info_object(file, name, meta_infos):
         raise ChecksumError(f"Checksum of {name} is not correct! Check file.")
     # Deserialize the Info object
     if Camera.is_type_of(name.upper()):
-        meta_infos.camera[Camera[name.upper()]] = CameraInformation.from_bytes(info_bytes)
+        meta_infos.cameras[Camera[name.upper()]] = CameraInformation.from_bytes(info_bytes)
     elif Lidar.is_type_of(name.upper()):
         meta_infos.lidar[Lidar[name.upper()]] = LidarInformation.from_bytes(info_bytes)
 
@@ -38,7 +38,8 @@ def _read_frame_object(file, meta_infos):
     # Verify checksum
     if compute_checksum(compressed_data) != compressed_data_checksum:
         raise ChecksumError("Checksum mismatch. Data might be corrupted!")
-    return Frame.from_bytes(compressed_data, pts_dtype=meta_infos.lidar[Lidar.OS1_TOP].dtype)
+    # TODO: Expects to have a specific lidar info
+    return Frame.from_bytes(compressed_data, meta_info=meta_infos)
 
 
 def unpack_record(filename) -> Tuple[Infos, List[Frame]]:
@@ -64,8 +65,3 @@ def unpack_record(filename) -> Tuple[Infos, List[Frame]]:
         for _ in range(num_frames):
             frames.append(_read_frame_object(file, meta_infos))
     return meta_infos, frames
-
-
-# proj_top_left = ameisedataset.get_projection_matrix(Lidar.OS1_TOP, Camera.STEREO_LEFT)              # get projection mtx (4000, 3) idx, x, y
-# proj_point_list = ameisedataset.merge_projection_with_pcloud(Frame.lidar.points, proj_top_left)     # delete all points but image an add proj
-# 4000, 11

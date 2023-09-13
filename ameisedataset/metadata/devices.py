@@ -13,13 +13,13 @@ class Infos:
     Attributes:
         filename (str): Name of the dataset file.
         SHA256 (str): SHA256 checksum of the dataset.
-        camera (List[CameraInformation]): List of camera information associated with the dataset.
+        cameras (List[CameraInformation]): List of camera information associated with the dataset.
         lidar (List[LidarInformation]): List of lidar information associated with the dataset.
     """
-    def __init__(self, filename: str):
+    def __init__(self, filename: str = ""):
         self.filename: str = filename
         self.SHA256: str = ""
-        self.camera: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
+        self.cameras: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
         self.lidar: List[LidarInformation] = [LidarInformation()] * NUM_LIDAR
 
 
@@ -60,17 +60,20 @@ class CameraInformation:
         self.exposure_time: int = exposure_time
         self.extrinsic: Pose = Pose()   # Transformation to Top_Lidar
 
-    def add_from_ros_cam_info(self, camera_info_obj):
+    def add_from_ros_cam_info(self, cam_info_msg):
         """ Populate the CameraInformation attributes from a ROS (Roboter Operating System) camera info object.
         Args:
-            camera_info_obj: ROS camera info msg.
+            cam_info_msg: ROS camera info msg.
         """
-        self.shape = (camera_info_obj.height, camera_info_obj.width)
-        self.camera_mtx = camera_info_obj.cam_matrix
-        self.distortion_mtx = camera_info_obj.dist_coeff
-        self.rectification_mtx = camera_info_obj.rect_matrix
-        self.projection_mtx = camera_info_obj.proj_matrix
-        # self.region_of_interest = camera_info_obj.roi
+        self.shape = (cam_info_msg.height, cam_info_msg.width)
+        self.camera_mtx = np.array(cam_info_msg.K).reshape(3, 3)
+        self.distortion_mtx = np.array(cam_info_msg.D)
+        self.rectification_mtx = np.array(cam_info_msg.R).reshape(3, 3)
+        self.projection_mtx = np.array(cam_info_msg.P).reshape(3, 4)
+        self.region_of_interest = ROI(x_off=cam_info_msg.roi.x_offset,
+                                      y_off=cam_info_msg.roi.y_offset,
+                                      height=cam_info_msg.roi.height,
+                                      width=cam_info_msg.roi.width)
 
     def to_bytes(self) -> bytes:
         """ Serialize the CameraInformation instance to bytes.
@@ -164,3 +167,14 @@ class Pose:
     def __init__(self):
         self.xyz: np.array = np.array([])
         self.rpy: np.array = np.array([])
+
+
+class ROI:
+    def __init__(self, x_off, y_off, height, width):
+        self.x_offset = x_off
+        self.y_offset = y_off
+        self.height = height
+        self.width = width
+
+    def __iter__(self):
+        return iter((self.x_offset, self.y_offset, self.height, self.width))
