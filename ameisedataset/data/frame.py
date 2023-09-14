@@ -2,7 +2,7 @@ import zlib
 import dill
 import numpy as np
 from PIL import Image as PilImage
-from typing import List
+from typing import List, Tuple
 from datetime import datetime, timedelta, timezone
 from ameisedataset.data import Camera, Lidar
 from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR
@@ -33,24 +33,18 @@ def _convert_unix_to_utc(unix_timestamp_ns: str, utc_offset_hours: int = 2) -> s
 class Image:
     """ Represents an image along with its metadata.
     Attributes:
-        name (str): Name of the image.
+        timestamp (str): timestamp of the image as UNIX.
         image (PilImage): The actual image data.
-        exif_data (dict): Metadata associated with the image.
-            - height (int): Height of the image.
-            - width (int): Width of the image.
-            - channels (int): Number of channels in the image.
-            - encoding (str): Encoding format of the image.
-            - timestamp (str): Timestamp associated with the image.
     Methods:
         get_timestamp: Returns the UTC timestamp of the image.
         from_bytes: Class method to create an Image instance from byte data.
     """
-    def __init__(self):
-        self.timestamp: str = ""
-        self.image: PilImage = None
+    def __init__(self, image=None, timestamp=""):
+        self.image: PilImage = image
+        self.timestamp: str = timestamp
 
     def __getattr__(self, attr) -> PilImage:
-        """Greift auf Attribute des inneren PIL-Image-Objekts zu, wenn sie in dieser Klasse nicht vorhanden sind."""
+        """For a direct call of the variable, it returns the image"""
         if hasattr(self.image, attr):
             return getattr(self.image, attr)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
@@ -65,12 +59,12 @@ class Image:
         return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
 
     @classmethod
-    def from_bytes(cls, data_bytes: bytes, ts_data: bytes, shape):
+    def from_bytes(cls, data_bytes: bytes, ts_data: bytes, shape: Tuple[int, int]):
         """ Create an Image instance from byte data.
         Args:
-            name (str): Name of the image.
             data_bytes (bytes): Byte data of the image.
             ts_data (bytes): Serialized timestamp data associated with the image.
+            shape (Tuple[int, int]): height and width as Tuple.
         Returns:
             Image: An instance of the Image class.
         """
