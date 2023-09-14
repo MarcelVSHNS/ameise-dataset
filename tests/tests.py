@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 from ameisedataset import core as ameise
 from ameisedataset.utils import transformation as tf
-from ameisedataset.metadata.names import Camera, Lidar
+from ameisedataset.data.names import Camera, Lidar
 
 def plot_points_on_image(img, points):
     """

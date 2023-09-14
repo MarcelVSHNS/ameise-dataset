@@ -3,7 +3,7 @@ import os
 from typing import List, Tuple
 
 import ameisedataset.utils.transformation
-from ameisedataset.metadata import CameraInformation, LidarInformation, Camera, Lidar, Frame, Infos
+from ameisedataset.data import CameraInformation, LidarInformation, Camera, Lidar, Frame, Infos
 from ameisedataset.miscellaneous import compute_checksum, InvalidFileTypeError, ChecksumError, SHA256_CHECKSUM_LENGTH, INT_LENGTH
 
 

@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image as PilImage
 from typing import List
 from datetime import datetime, timedelta, timezone
-from ameisedataset.metadata import Camera, Lidar
+from ameisedataset.data import Camera, Lidar
 from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR
 
 
@@ -80,41 +80,13 @@ class Image:
         return img_instance
 
 
-class Points:
-    """ Represents a collection of points.
-    Attributes:
-        name (str): Name associated with the points.
-        points (np.ndarray): An array holding the point data.
-    Methods:
-        from_bytes: Class method to create a Points instance from byte data.
-    """
-    def __init__(self):
-        self.name: str = ""
-        self.points: np.ndarray = np.array([])
-
-    @classmethod
-    def from_bytes(cls, name: str, data_bytes: bytes, pts_dtype: np.dtype):
-        """ Create a Points instance from byte data.
-        Args:
-            name (str): Name associated with the points.
-            data_bytes (bytes): Byte data representing the points.
-            pts_dtype (np.dtype): Data type of the points.
-        Returns:
-            Points: An instance of the Points class.
-        """
-        pts_instance = cls()
-        pts_instance.name = name
-        pts_instance.points = np.frombuffer(data_bytes, dtype=pts_dtype)
-        return pts_instance
-
-
 class Frame:
     """ Represents a frame containing both images and points.
     Attributes:
         frame_id (int): Unique identifier for the frame.
         timestamp (str): Timestamp associated with the frame.
         cameras (List[Image]): List of images associated with the frame.
-        lidar (List[Points]): List of point data associated with the frame.
+        lidar (List[np.array]): List of point data associated with the frame.
     Methods:
         from_bytes: Class method to create a Frame instance from compressed byte data.
     """

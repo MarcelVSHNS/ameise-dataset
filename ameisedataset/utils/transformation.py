@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import cv2
 
-from ameisedataset.metadata import Pose, CameraInformation, LidarInformation
+from ameisedataset.data import Pose, CameraInformation, LidarInformation
 
 
 def rectify_image(image, cam_info, crop=False):
