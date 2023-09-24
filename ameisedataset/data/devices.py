@@ -22,6 +22,11 @@ class Infos:
         self.cameras: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
         self.lidar: List[LidarInformation] = [LidarInformation()] * NUM_LIDAR
 
+    def get_info_lists(self) -> Tuple[List[int], List[int]]:
+        camera_indices = [idx for idx, item in enumerate(self.cameras) if item.shape[0] != 0]
+        lidar_indices = [idx for idx, item in enumerate(self.lidar) if item.dtype is not None]
+        return camera_indices, lidar_indices
+
 
 class CameraInformation:
     """ Represents detailed information about a camera.
@@ -49,11 +54,11 @@ class CameraInformation:
         """
         self.name: str = name
         self.shape: Tuple[int, int] = (0, 0)
-        self.camera_mtx = None
-        self.distortion_mtx = None
-        self.rectification_mtx = None
-        self.projection_mtx = None
-        self.region_of_interest = None
+        self.camera_mtx: np.array = np.array([])
+        self.distortion_mtx: np.array = np.array([])
+        self.rectification_mtx: np.array = np.array([])
+        self.projection_mtx: np.array = np.array([])
+        self.region_of_interest: ROI = ROI()
         self.camera_type: str = camera_type
         self.focal_length: int = focal_length
         self.aperture: int = aperture
@@ -115,7 +120,7 @@ class LidarInformation:
         Args:
             name (str): Name of the LiDAR sensor.
         """
-        self.name = name
+        self.name: str = name
         self.dtype = None
         self.beam_altitude_angles = None
         self.beam_azimuth_angles = None
@@ -170,7 +175,7 @@ class Pose:
 
 
 class ROI:
-    def __init__(self, x_off, y_off, height, width):
+    def __init__(self, x_off=0, y_off=0, height=0, width=0):
         self.x_offset = x_off
         self.y_offset = y_off
         self.height = height

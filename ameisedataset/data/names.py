@@ -11,6 +11,23 @@ class InfoBaseClass(type):
         """
         return getattr(cls, key)
 
+    def is_type_of(cls, value):
+        """ Check if the provided value corresponds to a defined camera type.
+        Args:
+            value (Any): Value to be checked.
+        Returns:
+            bool: True if the value is a defined camera type, False otherwise.
+        """
+        return value in cls.__dict__
+
+    def get_name_by_value(cls, value):
+        """ Retrieve the name of the class constant based on its value. """
+        constants = {k: v for k, v in vars(cls).items() if not callable(v) and not k.startswith("__")}
+        for name, val in constants.items():
+            if val == value:
+                return name
+        return None
+
 
 class Camera(metaclass=InfoBaseClass):
     """ Defines constants representing different camera types.
@@ -25,16 +42,6 @@ class Camera(metaclass=InfoBaseClass):
     STEREO_RIGHT = 2
     MONO_RIGHT = 3
 
-    @classmethod
-    def is_type_of(cls, value):
-        """ Check if the provided value corresponds to a defined camera type.
-        Args:
-            value (Any): Value to be checked.
-        Returns:
-            bool: True if the value is a defined camera type, False otherwise.
-        """
-        return value in cls.__dict__
-
 
 class Lidar(metaclass=InfoBaseClass):
     """ Defines constants representing different Lidar types.
@@ -46,14 +53,3 @@ class Lidar(metaclass=InfoBaseClass):
     OS0_LEFT = 0
     OS1_TOP = 1
     OS0_RIGHT = 2
-
-    @classmethod
-    def is_type_of(cls, value):
-        """
-        Check if the provided value corresponds to a defined lidar type.
-        Args:
-            value (Any): Value to be checked.
-        Returns:
-            bool: True if the value is a defined Lidar type, False otherwise.
-        """
-        return value in cls.__dict__
