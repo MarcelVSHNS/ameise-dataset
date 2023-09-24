@@ -5,6 +5,7 @@ from ameisedataset import core as ameise
 from ameisedataset.utils import transformation as tf
 from ameisedataset.data.names import Camera, Lidar
 
+
 def plot_points_on_image(img, points):
     """
     Zeichnet Punkte auf ein Bild.
@@ -24,13 +25,17 @@ def plot_points_on_image(img, points):
 
     plt.show()
 
-infos, frames = ameise.unpack_record("samples/frame.4mse")
-infos.cameras[ameise.Camera.STEREO_LEFT].extrinsic.xyz = np.array([1.2071032524108887, 0.11899397522211075, -0.8313015103340149])
-infos.cameras[ameise.Camera.STEREO_LEFT].extrinsic.rpy = np.array([-1.5636708736419678, 0.0407794751226902, -1.5704575777053833])
-infos.lidar[ameise.Lidar.OS1_TOP].extrinsic.xyz = np.array([0, 0, 0])
-infos.lidar[ameise.Lidar.OS1_TOP].extrinsic.rpy = np.array([0, 0, 0])
+infos, frames = ameise.unpack_record("samples/FRAME.4mse")
+# infos.cameras[ameise.Camera.STEREO_LEFT].extrinsic.xyz = np.array([1.2071032524108887, 0.11899397522211075, -0.8313015103340149])
+# infos.cameras[ameise.Camera.STEREO_LEFT].extrinsic.rpy = np.array([-1.5636708736419678, 0.0407794751226902, -1.5704575777053833])
+# infos.lidar[ameise.Lidar.OS1_TOP].extrinsic.xyz = np.array([0, 0, 0])
+# infos.lidar[ameise.Lidar.OS1_TOP].extrinsic.rpy = np.array([0, 0, 0])
 
-print(tf.transform_to_sensor(infos.lidar[ameise.Lidar.OS1_TOP].extrinsic, infos.cameras[ameise.Camera.STEREO_LEFT].extrinsic))
+cv2.imshow("", frames[-1].cameras[Camera.STEREO_LEFT].image)
+cv2.waitKey(0)
+cv2.destroyWindow()
+
+print(tf.transform_to_sensor(infos.lidar[Lidar.OS1_TOP].extrinsic, infos.cameras[Camera.STEREO_LEFT].extrinsic))
 x = tf.get_projection_matrix(frames[-1].lidar[ameise.Lidar.OS1_TOP], infos.lidar[ameise.Lidar.OS1_TOP], infos.cameras[Camera.STEREO_LEFT])
 
 image = np.array(frames[-1].cameras[Camera.STEREO_LEFT].image)
