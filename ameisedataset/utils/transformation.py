@@ -1,26 +1,29 @@
 from typing import List
+from PIL import Image as PilImage
 import numpy as np
 import cv2
 
 from ameisedataset.data import Pose, CameraInformation, LidarInformation
 
 
-def rectify_image(image, cam_info, crop=False):
-    # Initialisiere die rectifizierten Abbildungs-Maps für die Bildrectifizierung
-    mapx, mapy = cv2.initUndistortRectifyMap(cam_info.cam_matrix, cam_info.dist_coeff,
-                                             cam_info.rect_matrix, cam_info.proj_matrix,
-                                             (cam_info.width, cam_info.height), cv2.CV_16SC2)
+def rectify_image(image: PilImage, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
+    # Init and calculate rectification matrix
+    mapx, mapy = cv2.initUndistortRectifyMap(camera_information.camera_mtx, camera_information.distortion_mtx,
+                                             camera_information.rectification_mtx, camera_information.projection_mtx,
+                                             camera_information.shape, cv2.CV_16SC2)
 
-    # Wende die Abbildungs-Maps auf das Bild an, um es zu rectifizieren
-    rectified_image = cv2.remap(image, mapx, mapy, cv2.INTER_LINEAR)
+    # Apply matrix
+    rectified_image = cv2.remap(np.array(image), mapx, mapy, cv2.INTER_LINEAR)
 
-    # Schneide das Bild gemäß dem definierten ROI-Rechteck aus
+    # Crop image if wanted
     if crop:
-        x, y, w, h = cam_info.roi.x_offset, cam_info.roi.y_offset, cam_info.roi.width, cam_info.roi.height
+        x, y, w, h = camera_information.region_of_interest
         rectified_image = rectified_image[y:y + h, x:x + w]
-        resized_img = rectified_image  # cv2.resize(rectified_image, (1920, 1200))
-        return resized_img
-    return rectified_image
+        if resize_to_original_size:
+            rectified_image = cv2.resize(rectified_image, (1920, 1200))
+        else:
+            rectified_image = rectified_image
+    return PilImage.fromarray(rectified_image)
 
 
 def invert_transformation(T):

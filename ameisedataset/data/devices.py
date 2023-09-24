@@ -70,7 +70,7 @@ class CameraInformation:
         Args:
             cam_info_msg: ROS camera info msg.
         """
-        self.shape = (cam_info_msg.height, cam_info_msg.width)
+        self.shape = (cam_info_msg.width, cam_info_msg.height)
         self.camera_mtx = np.array(cam_info_msg.K).reshape(3, 3)
         self.distortion_mtx = np.array(cam_info_msg.D)
         self.rectification_mtx = np.array(cam_info_msg.R).reshape(3, 3)
@@ -182,4 +182,4 @@ class ROI:
         self.width = width
 
     def __iter__(self):
-        return iter((self.x_offset, self.y_offset, self.height, self.width))
+        return iter((self.x_offset, self.y_offset, self.width, self.height))
