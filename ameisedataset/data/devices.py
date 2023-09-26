@@ -43,7 +43,7 @@ class CameraInformation:
         aperture (int): Aperture size of the camera.
         exposure_time (int): Exposure time of the camera in milliseconds.
     """
-    def __init__(self, name: str = "", camera_type: str = "", focal_length: int = 0, aperture: int = 0, exposure_time: int = 0):
+    def __init__(self, name: str = ''):
         """ Initialize a CameraInformation instance with the specified attributes.
         Args:
             name (str): Name of the camera.
@@ -54,15 +54,16 @@ class CameraInformation:
         """
         self.name: str = name
         self.shape: Tuple[int, int] = (0, 0)
+        self.distortion_type: str = ''
         self.camera_mtx: np.array = np.array([])
         self.distortion_mtx: np.array = np.array([])
         self.rectification_mtx: np.array = np.array([])
         self.projection_mtx: np.array = np.array([])
         self.region_of_interest: ROI = ROI()
-        self.camera_type: str = camera_type
-        self.focal_length: int = focal_length
-        self.aperture: int = aperture
-        self.exposure_time: int = exposure_time
+        self.camera_type: str = ''
+        self.focal_length: int = 0
+        self.aperture: int = 0
+        self.exposure_time: int = 0
         self.extrinsic: Pose = Pose()   # Transformation to Top_Lidar
 
     def add_from_ros_cam_info(self, cam_info_msg):
