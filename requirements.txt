@@ -2,3 +2,6 @@ dill
 numpy
 opencv-python
 Pillow
+PyYAML
+matplotlib
+setuptools

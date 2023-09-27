@@ -91,19 +91,17 @@ class Frame:
         self.lidar: List[np.array] = [np.array([])] * NUM_LIDAR
 
     @classmethod
-    def from_bytes(cls, compressed_data, meta_info):
+    def from_bytes(cls, data, meta_info):
         """ Create a Frame instance from compressed byte data.
         Args:
-            compressed_data (bytes): Compressed byte data representing the frame.
+            data (bytes): Compressed byte data representing the frame.
             meta_info (Infos): Data type of the points.
         Returns:
             Frame: An instance of the Frame class.
         """
-        # Decompress the provided data
-        decompressed_data = zlib.decompress(compressed_data)
         # Extract frame information length and data
-        frame_info_len = int.from_bytes(decompressed_data[:INT_LENGTH], 'big')
-        frame_info_bytes = decompressed_data[INT_LENGTH:INT_LENGTH + frame_info_len]
+        frame_info_len = int.from_bytes(data[:INT_LENGTH], 'big')
+        frame_info_bytes = data[INT_LENGTH:INT_LENGTH + frame_info_len]
         frame_info = dill.loads(frame_info_bytes)
         frame_instance = cls(frame_info[0], frame_info[1])
         # Initialize offset for further data extraction
@@ -112,14 +110,14 @@ class Frame:
             # Check if the info name corresponds to a Camera type
             if Camera.is_type_of(info_name.upper()):
                 # Extract image length and data
-                img_len = int.from_bytes(decompressed_data[offset:offset + INT_LENGTH], 'big')
+                img_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
                 offset += INT_LENGTH
-                camera_img_bytes = decompressed_data[offset:offset + img_len]
+                camera_img_bytes = data[offset:offset + img_len]
                 offset += img_len
                 # Extract Exif data length and data
-                ts_len = int.from_bytes(decompressed_data[offset:offset + INT_LENGTH], 'big')
+                ts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
                 offset += INT_LENGTH
-                ts_data = decompressed_data[offset:offset + ts_len]
+                ts_data = data[offset:offset + ts_len]
                 offset += ts_len
                 # Create Image instance and store it in the frame instance
                 frame_instance.cameras[Camera[info_name.upper()]] = Image.from_bytes(camera_img_bytes, ts_data,
@@ -127,9 +125,9 @@ class Frame:
             # Check if the info name corresponds to a Lidar type
             elif Lidar.is_type_of(info_name.upper()):
                 # Extract points length and data
-                pts_len = int.from_bytes(decompressed_data[offset:offset + INT_LENGTH], 'big')
+                pts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
                 offset += INT_LENGTH
-                laser_pts_bytes = decompressed_data[offset:offset + pts_len]
+                laser_pts_bytes = data[offset:offset + pts_len]
                 offset += pts_len
                 # Create Points instance and store it in the frame instance
                 # .lidar[Lidar.OS1_TOP].dtype
