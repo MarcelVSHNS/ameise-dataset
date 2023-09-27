@@ -34,14 +34,3 @@ image = np.array(frames[-1].cameras[Camera.STEREO_LEFT])
 im_rect = tf.rectify_image(image, infos.cameras[Camera.STEREO_LEFT], crop=True)
 print(im_rect.size)
 im_rect.show()
-
-"""
-for pt in x:
-    cv2.circle(image, pt, 2, (0, 255, 0), -1)
-
-cv2.imshow("", image)
-cv2.waitKey(0)
-cv2.destroyWindow()
-
-plot_points_on_image(frames[-1].cameras[Camera.STEREO_LEFT].image, x)
-"""

@@ -172,8 +172,8 @@ class LidarInformation:
 
 class Pose:
     def __init__(self):
-        self.xyz: np.array = np.zeros((1, 3))
-        self.rpy: np.array = np.zeros((1, 3))
+        self.xyz: np.array = np.array([0, 0, 0])
+        self.rpy: np.array = np.array([0, 0, 0])
 
 
 class TransformationMtx:
