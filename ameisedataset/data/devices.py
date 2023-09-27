@@ -65,6 +65,7 @@ class CameraInformation:
         self.aperture: int = 0
         self.exposure_time: int = 0
         self.extrinsic: Pose = Pose()   # Transformation to Top_Lidar
+        self.stereo_transform: TransformationMtx = TransformationMtx()
 
     def add_from_ros_cam_info(self, cam_info_msg):
         """ Populate the CameraInformation attributes from a ROS (Roboter Operating System) camera info object.
@@ -133,7 +134,7 @@ class LidarInformation:
         self.type = None
         self.extrinsic: Pose = Pose()
 
-    def add_from_ros_lidar_info(self, laser_info_obj):
+    def add_from_json_lidar_info(self, laser_info_obj):
         """ Populate the LidarInformation attributes from a ROS (Roboter Operating System) LiDAR info object.
         Args:
             laser_info_obj: ROS LiDAR info object.
@@ -171,8 +172,14 @@ class LidarInformation:
 
 class Pose:
     def __init__(self):
-        self.xyz: np.array = np.array([0, 0, 0])
-        self.rpy: np.array = np.array([0, 0, 0])
+        self.xyz: np.array = np.zeros((1, 3))
+        self.rpy: np.array = np.zeros((1, 3))
+
+
+class TransformationMtx:
+    def __init__(self):
+        self.rotation: np.array = np.zeros((3, 3))
+        self.translation: np.array = np.zeros((1, 3))
 
 
 class ROI:
