@@ -6,5 +6,5 @@ exclude venv/*
 exclude .gitignore
 exclude .gitattributes
 exclude __pycache__/
-exclude tests/
+exclude tests/*
 exclude docs/
