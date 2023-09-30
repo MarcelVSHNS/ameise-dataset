@@ -32,7 +32,7 @@ class CameraInformation:
     """ Represents detailed information about a camera.
     Attributes:
         name (str): Name of the camera.
-        shape (Tuple[int, int]): Dimensions (height, width) of the camera's image.
+        shape (Tuple[int, int]): Dimensions (width, height) of the camera's image.
         camera_mtx: Camera matrix.
         distortion_mtx: Distortion matrix.
         rectification_mtx: Rectification matrix.
@@ -183,11 +183,11 @@ class TransformationMtx:
 
 
 class ROI:
-    def __init__(self, x_off=0, y_off=0, height=0, width=0):
+    def __init__(self, x_off=0, y_off=0, width=0, height=0):
         self.x_offset = x_off
         self.y_offset = y_off
-        self.height = height
         self.width = width
+        self.height = height
 
     def __iter__(self):
         return iter((self.x_offset, self.y_offset, self.width, self.height))

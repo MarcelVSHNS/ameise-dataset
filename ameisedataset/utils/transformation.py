@@ -8,16 +8,22 @@ from ameisedataset.data import Pose, CameraInformation, LidarInformation
 
 def rectify_image(image: PilImage, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
     # Init and calculate rectification matrix
-    mapx, mapy = cv2.initUndistortRectifyMap(camera_information.camera_mtx, camera_information.distortion_mtx,
-                                             camera_information.rectification_mtx, camera_information.projection_mtx,
+    img = np.array(image)
+    D1 = camera_information.distortion_mtx[:-1]
+    K1 = camera_information.camera_mtx
+    R1 = camera_information.rectification_mtx
+    P1 = camera_information.projection_mtx
+    image_size = camera_information.shape
+    mapx, mapy = cv2.initUndistortRectifyMap(K1, D1,
+                                             R1, P1,
                                              camera_information.shape, cv2.CV_16SC2)
 
     # Apply matrix
-    rectified_image = cv2.remap(np.array(image), mapx, mapy, cv2.INTER_LINEAR)
-
+    rectified_image = cv2.remap(img, mapx, mapy, interpolation=cv2.INTER_LINEAR)
+    cv2.imwrite(f'{camera_information.name}.png', rectified_image)
     # Crop image if wanted
     if crop:
-        x, y, w, h = camera_information.region_of_interest
+        x, y, h, w = camera_information.region_of_interest
         rectified_image = rectified_image[y:y + h, x:x + w]
         if resize_to_original_size:
             rectified_image = cv2.resize(rectified_image, (1920, 1200))

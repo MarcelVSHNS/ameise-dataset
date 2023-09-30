@@ -64,7 +64,7 @@ class Image:
         Args:
             data_bytes (bytes): Byte data of the image.
             ts_data (bytes): Serialized timestamp data associated with the image.
-            shape (Tuple[int, int]): height and width as Tuple.
+            shape (Tuple[int, int]): width and height as Tuple.
         Returns:
             Image: An instance of the Image class.
         """
