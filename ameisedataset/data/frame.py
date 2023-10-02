@@ -10,18 +10,20 @@ from ameisedataset.data import Camera, Lidar
 from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR, compute_checksum
 
 
-def _convert_unix_to_utc(unix_timestamp_ns: str, utc_offset_hours: int = 2) -> str:
+def _convert_unix_to_utc(unix_timestamp_ns: Decimal, utc_offset_hours: int = 2) -> str:
     """
-    Convert a Unix timestamp (in nanoseconds) to a human-readable UTC string with a timezone offset.
+    Convert a Unix timestamp (in nanoseconds as Decimal) to a human-readable UTC string with a timezone offset.
     This function also displays milliseconds, microseconds, and nanoseconds.
     Parameters:
-    - unix_timestamp_ns: Unix timestamp in nanoseconds as a string.
+    - unix_timestamp_ns: Unix timestamp in nanoseconds as a Decimal.
     - offset_hours: UTC timezone offset in hours.
     Returns:
     - Human-readable UTC string with the given timezone offset and extended precision.
     """
+    # Convert the Decimal to integer for calculations
+    unix_timestamp_ns = int(unix_timestamp_ns)
     # Extract the whole seconds and the fractional part
-    timestamp_s, fraction_ns = divmod(int(unix_timestamp_ns), int(1e9))
+    timestamp_s, fraction_ns = divmod(unix_timestamp_ns, int(1e9))
     milliseconds, remainder_ns = divmod(fraction_ns, int(1e6))
     microseconds, nanoseconds = divmod(remainder_ns, int(1e3))
     # Convert to datetime object and apply the offset
@@ -41,9 +43,9 @@ class Image:
         get_timestamp: Returns the UTC timestamp of the image.
         from_bytes: Class method to create an Image instance from byte data.
     """
-    def __init__(self, image=None, timestamp=""):
+    def __init__(self, image: PilImage = None, timestamp: Decimal = '0'):
         self.image: PilImage = image
-        self.timestamp: str = timestamp
+        self.timestamp: Decimal = timestamp
 
     def __getattr__(self, attr) -> PilImage:
         """For a direct call of the variable, it returns the image"""
@@ -71,7 +73,7 @@ class Image:
             Image: An instance of the Image class.
         """
         img_instance = cls()
-        img_instance.timestamp = ts_data.decode('utf-8')
+        img_instance.timestamp = Decimal(ts_data.decode('utf-8'))
         img_instance.image = PilImage.frombytes("RGB", shape, data_bytes)
         return img_instance
 
@@ -154,7 +156,7 @@ class Frame:
         cam_msgs_to_write = [self.cameras[idx] for idx in camera_indices]
         for img_obj in cam_msgs_to_write:
             encoded_img = img_obj.image.tobytes()
-            encoded_ts = img_obj.timestamp.encode('utf-8')
+            encoded_ts = str(img_obj.timestamp).encode('utf-8')
             img_len = len(encoded_img).to_bytes(4, 'big')
             ts_len = len(encoded_ts).to_bytes(4, 'big')
             image_bytes += img_len + encoded_img + ts_len + encoded_ts

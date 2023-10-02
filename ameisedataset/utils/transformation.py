@@ -3,24 +3,19 @@ from PIL import Image as PilImage
 import numpy as np
 import cv2
 
-from ameisedataset.data import Pose, CameraInformation, LidarInformation
+from ameisedataset.data import Pose, CameraInformation, LidarInformation, Image
 
 
-def rectify_image(image: PilImage, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
+def rectify_image(image: Image, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
     # Init and calculate rectification matrix
-    img = np.array(image)
-    D1 = camera_information.distortion_mtx[:-1]
-    K1 = camera_information.camera_mtx
-    R1 = camera_information.rectification_mtx
-    P1 = camera_information.projection_mtx
-    image_size = camera_information.shape
-    mapx, mapy = cv2.initUndistortRectifyMap(K1, D1,
-                                             R1, P1,
-                                             camera_information.shape, cv2.CV_16SC2)
-
+    mapx, mapy = cv2.initUndistortRectifyMap(cameraMatrix=camera_information.camera_mtx,
+                                             distCoeffs=camera_information.distortion_mtx[:-1],
+                                             R=camera_information.rectification_mtx,
+                                             newCameraMatrix=camera_information.projection_mtx,
+                                             size=camera_information.shape,
+                                             m1type=cv2.CV_16SC2)
     # Apply matrix
-    rectified_image = cv2.remap(img, mapx, mapy, interpolation=cv2.INTER_LINEAR)
-    cv2.imwrite(f'{camera_information.name}.png', rectified_image)
+    rectified_image = cv2.remap(np.array(image.image), mapx, mapy, interpolation=cv2.INTER_LINEAR)
     # Crop image if wanted
     if crop:
         x, y, h, w = camera_information.region_of_interest
@@ -29,7 +24,7 @@ def rectify_image(image: PilImage, camera_information: CameraInformation, crop=F
             rectified_image = cv2.resize(rectified_image, (1920, 1200))
         else:
             rectified_image = rectified_image
-    return PilImage.fromarray(rectified_image)
+    return Image(PilImage.fromarray(rectified_image), image.timestamp)
 
 
 def invert_transformation(T):
