@@ -1,11 +1,13 @@
 import zlib
 import dill
+import cv2
+from decimal import Decimal
 import numpy as np
 from PIL import Image as PilImage
 from typing import List, Tuple
 from datetime import datetime, timedelta, timezone
 from ameisedataset.data import Camera, Lidar
-from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR
+from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR, compute_checksum
 
 
 def _convert_unix_to_utc(unix_timestamp_ns: str, utc_offset_hours: int = 2) -> str:
@@ -84,9 +86,9 @@ class Frame:
     Methods:
         from_bytes: Class method to create a Frame instance from compressed byte data.
     """
-    def __init__(self, frame_id: int, timestamp: str):
+    def __init__(self, frame_id: int, timestamp: Decimal):
         self.frame_id: int = frame_id
-        self.timestamp: str = timestamp
+        self.timestamp: Decimal = timestamp
         self.cameras: List[Image] = [Image()] * NUM_CAMERAS
         self.lidar: List[np.array] = [np.array([])] * NUM_LIDAR
 
@@ -135,3 +137,43 @@ class Frame:
                                                                                dtype=meta_info.lidar[Lidar[info_name.upper()]].dtype)
         # Return the fully populated frame instance
         return frame_instance
+
+    def to_bytes(self):
+        # convert data to bytes
+        image_bytes = b""
+        laser_bytes = b""
+        camera_indices, lidar_indices = self.get_data_lists()
+        frame_info = [self.frame_id, self.timestamp]
+        for data_index in camera_indices:
+            frame_info.append(Camera.get_name_by_value(data_index))
+        for data_index in lidar_indices:
+            frame_info.append(Lidar.get_name_by_value(data_index))
+        frame_info_bytes = dill.dumps(frame_info)
+        frame_info_len = len(frame_info_bytes).to_bytes(4, 'big')
+        # Encode images together with their time
+        cam_msgs_to_write = [self.cameras[idx] for idx in camera_indices]
+        for img_obj in cam_msgs_to_write:
+            encoded_img = img_obj.image.tobytes()
+            encoded_ts = img_obj.timestamp.encode('utf-8')
+            img_len = len(encoded_img).to_bytes(4, 'big')
+            ts_len = len(encoded_ts).to_bytes(4, 'big')
+            image_bytes += img_len + encoded_img + ts_len + encoded_ts
+        # Encode laser points
+        lidar_msgs_to_write = [self.lidar[idx] for idx in lidar_indices]
+        for laser in lidar_msgs_to_write:
+            encoded_pts = laser.tobytes()
+            length = len(encoded_pts)
+            laser_bytes += length.to_bytes(4, 'big') + encoded_pts
+        # pack bytebuffer all together and compress them to one package
+        combined_data = frame_info_len + frame_info_bytes + image_bytes + laser_bytes
+        # compressed_data = combined_data  #zlib.compress(combined_data)  # compress if something is compressable
+        # calculate length and checksum
+        compressed_data_len = len(combined_data).to_bytes(4, 'big')
+        compressed_data_checksum = compute_checksum(combined_data)
+        # return a header with the length and byteorder
+        return compressed_data_len + compressed_data_checksum + combined_data
+
+    def get_data_lists(self) -> Tuple[List[int], List[int]]:
+        camera_indices = [idx for idx, image in enumerate(self.cameras) if image.image is not None]
+        lidar_indices = [idx for idx, array in enumerate(self.lidar) if array.size != 0]
+        return camera_indices, lidar_indices
