@@ -120,7 +120,7 @@ class Frame:
         self.frame_id: int = frame_id
         self.timestamp: Decimal = timestamp
         self.cameras: List[Image] = [Image()] * NUM_CAMERAS
-        self.lidar: List[np.array] = [np.array([])] * NUM_LIDAR
+        self.lidar: List[Points] = [Points()] * NUM_LIDAR
 
     @classmethod
     def from_bytes(cls, data, meta_info):
@@ -195,9 +195,11 @@ class Frame:
         # Encode laser points
         lidar_msgs_to_write = [self.lidar[idx] for idx in lidar_indices]
         for laser in lidar_msgs_to_write:
-            encoded_pts = laser.tobytes()
-            length = len(encoded_pts)
-            laser_bytes += length.to_bytes(4, 'big') + encoded_pts
+            encoded_pts = laser.points.tobytes()
+            encoded_ts = str(laser.timestamp).encode('utf-8')
+            pts_len = len(encoded_pts).to_bytes(4, 'big')
+            ts_len = len(encoded_ts).to_bytes(4, 'big')
+            laser_bytes += pts_len + encoded_pts + ts_len + encoded_ts
         # pack bytebuffer all together and compress them to one package
         combined_data = frame_info_len + frame_info_bytes + image_bytes + laser_bytes
         # compressed_data = combined_data  #zlib.compress(combined_data)  # compress if something is compressable
