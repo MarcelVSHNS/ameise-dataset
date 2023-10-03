@@ -109,7 +109,7 @@ def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation
         # Überprüfen Sie, ob der Punkt vor der Kamera liegt
         if point_in_camera[2] <= 0:
             # projection.append((None, None))
-            pass
+            continue
         else:
             # Projiziere den Punkt auf die Bildebene
             pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])

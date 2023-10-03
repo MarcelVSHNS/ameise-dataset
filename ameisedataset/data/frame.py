@@ -78,6 +78,34 @@ class Image:
         return img_instance
 
 
+class Points:
+    def __init__(self, points: np.array = np.array([]), timestamp: Decimal = '0'):
+        self.points: np.array = points
+        self.timestamp: Decimal = timestamp
+
+    def __getattr__(self, attr) -> np.array:
+        """For a direct call of the variable, it returns the image"""
+        if hasattr(self.points, attr):
+            return getattr(self.points, attr)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
+
+    @classmethod
+    def from_bytes(cls, data_bytes: bytes, ts_data: bytes, dtype: np.dtype):
+        img_instance = cls()
+        img_instance.timestamp = Decimal(ts_data.decode('utf-8'))
+        img_instance.points = np.frombuffer(data_bytes, dtype=dtype)
+        return img_instance
+
+    def get_timestamp(self, utc=2):
+        """ Get the UTC timestamp of the image.
+        Args:
+            utc (int, optional): Timezone offset in hours. Default is 2.
+        Returns:
+            str: The UTC timestamp of the image.
+        """
+        return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
+
+
 class Frame:
     """ Represents a frame containing both images and points.
     Attributes:
@@ -118,7 +146,7 @@ class Frame:
                 offset += INT_LENGTH
                 camera_img_bytes = data[offset:offset + img_len]
                 offset += img_len
-                # Extract Exif data length and data
+                # Extract timestamp
                 ts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
                 offset += INT_LENGTH
                 ts_data = data[offset:offset + ts_len]
@@ -133,10 +161,14 @@ class Frame:
                 offset += INT_LENGTH
                 laser_pts_bytes = data[offset:offset + pts_len]
                 offset += pts_len
+                # extract timestamp
+                ts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
+                offset += INT_LENGTH
+                ts_data = data[offset:offset + ts_len]
                 # Create Points instance and store it in the frame instance
                 # .lidar[Lidar.OS1_TOP].dtype
-                frame_instance.lidar[Lidar[info_name.upper()]] = np.frombuffer(laser_pts_bytes,
-                                                                               dtype=meta_info.lidar[Lidar[info_name.upper()]].dtype)
+                frame_instance.lidar[Lidar[info_name.upper()]] = Points.from_bytes(laser_pts_bytes, ts_data,
+                                                                                   dtype=meta_info.lidar[Lidar[info_name.upper()]].dtype)
         # Return the fully populated frame instance
         return frame_instance
 
