@@ -2,8 +2,7 @@ import dill
 import os
 from typing import List, Tuple
 
-import ameisedataset.utils.transformation
-from ameisedataset.data import CameraInformation, LidarInformation, Camera, Lidar, Frame, Infos
+from ameisedataset.data import *
 from ameisedataset.miscellaneous import compute_checksum, InvalidFileTypeError, ChecksumError, SHA256_CHECKSUM_LENGTH, INT_LENGTH
 
 
@@ -38,7 +37,6 @@ def _read_frame_object(file, meta_infos):
     # Verify checksum
     if compute_checksum(compressed_data) != compressed_data_checksum:
         raise ChecksumError("Checksum mismatch. Data might be corrupted!")
-    # TODO: Expects to have a specific lidar info
     return Frame.from_bytes(compressed_data, meta_info=meta_infos)
 
 
@@ -60,7 +58,7 @@ def unpack_record(filename) -> Tuple[Infos, List[Frame]]:
         for name in info_names:
             _read_info_object(file, name, meta_infos)
         # Read num frames
-        num_frames = int.from_bytes(file.read(4), 'big')
+        num_frames = int.from_bytes(file.read(INT_LENGTH), 'big')
         # Read frames
         for _ in range(num_frames):
             frames.append(_read_frame_object(file, meta_infos))

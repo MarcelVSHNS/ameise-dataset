@@ -1,15 +1,14 @@
-import hashlib
 import dill
 import json
 from typing import List, Tuple
-
 import numpy as np
 
 from ameisedataset.miscellaneous import compute_checksum, INT_LENGTH, NUM_CAMERAS, NUM_LIDAR
 
 
 class Infos:
-    """ Represents a collection of metadata information about a dataset.
+    """
+    Represents a collection of metadata information about a dataset.
     Attributes:
         filename (str): Name of the dataset file.
         SHA256 (str): SHA256 checksum of the dataset.
@@ -17,12 +16,25 @@ class Infos:
         lidar (List[LidarInformation]): List of lidar information associated with the dataset.
     """
     def __init__(self, filename: str = ""):
+        """
+        Initializes the Infos object with the provided dataset filename.
+        Sets default values for SHA256, cameras, and lidar attributes.
+        Parameters:
+            filename (str, optional): Name of the dataset file. Defaults to an empty string.
+        """
         self.filename: str = filename
         self.SHA256: str = ""
         self.cameras: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
         self.lidar: List[LidarInformation] = [LidarInformation()] * NUM_LIDAR
 
     def get_info_lists(self) -> Tuple[List[int], List[int]]:
+        """
+        Retrieves indices of cameras and lidars based on specific conditions.
+        Returns:
+            Tuple[List[int], List[int]]:
+                - First list contains indices of cameras with non-zero shape.
+                - Second list contains indices of lidars with defined dtype.
+        """
         camera_indices = [idx for idx, item in enumerate(self.cameras) if item.shape[0] != 0]
         lidar_indices = [idx for idx, item in enumerate(self.lidar) if item.dtype is not None]
         return camera_indices, lidar_indices
@@ -154,9 +166,10 @@ class LidarInformation:
         self.extrinsic: Pose = Pose()
 
     def add_from_json_lidar_info(self, laser_info_obj):
-        """ Populate the LidarInformation attributes from a ROS (Roboter Operating System) LiDAR info object.
+        """ Populate the Ouster LidarInformation attributes from a ROS (Roboter Operating System) ouster std_string_msg
+        LiDAR info object.
         Args:
-            laser_info_obj: ROS LiDAR info object.
+            laser_info_obj: json LiDAR info object.
         """
         data_dict = json.loads(laser_info_obj.data)
         self.beam_altitude_angles = data_dict["beam_intrinsics"]["beam_altitude_angles"]
@@ -190,23 +203,66 @@ class LidarInformation:
 
 
 class Pose:
+    """
+    Describes the position of a sensor in terms of its position and rotation relative to
+    the reference coordinate system (Top_LiDAR).
+    Attributes:
+        xyz (np.array): A 1x3 array representing the position of the sensor in the
+                        reference coordinate system (Top_LiDAR).
+        rpy (np.array): A 1x3 array representing the roll, pitch, and yaw angles of the sensor,
+                        describing its rotation in itself.
+    """
     def __init__(self):
+        """
+        Initializes the Pose with default position (0, 0, 0) and rotation (0, 0, 0).
+        """
         self.xyz: np.array = np.array([0, 0, 0])
         self.rpy: np.array = np.array([0, 0, 0])
 
 
 class TransformationMtx:
+    """
+    Represents a transformation matrix with separate rotation and translation components.
+    Attributes:
+        rotation (np.array): A 3x3 matrix representing the rotation component of the transformation.
+        translation (np.array): A 1x3 matrix representing the translation component of the transformation.
+    """
     def __init__(self):
+        """
+        Initializes the TransformationMtx with zero rotation and translation matrices.
+        """
         self.rotation: np.array = np.zeros((3, 3))
         self.translation: np.array = np.zeros((1, 3))
 
 
 class ROI:
+    """
+    Represents a Region of Interest (ROI) defined by its offset and dimensions.
+    Attributes:
+        x_offset (int): The horizontal offset of the ROI.
+        y_offset (int): The vertical offset of the ROI.
+        width (int): The width of the ROI.
+        height (int): The height of the ROI.
+    """
     def __init__(self, x_off=0, y_off=0, width=0, height=0):
+        """
+        Initializes the ROI with the provided offset and dimensions.
+        Defaults to an ROI at the origin with zero width and height.
+        Parameters:
+            x_off (int, optional): Horizontal offset. Defaults to 0.
+            y_off (int, optional): Vertical offset. Defaults to 0.
+            width (int, optional): Width of the ROI. Defaults to 0.
+            height (int, optional): Height of the ROI. Defaults to 0.
+        """
         self.x_offset = x_off
         self.y_offset = y_off
         self.width = width
         self.height = height
 
     def __iter__(self):
+        """
+        Allows iteration over the ROI attributes in the order: x_offset, y_offset, width, height.
+        Returns:
+            iterator: An iterator over the ROI attributes.
+        """
         return iter((self.x_offset, self.y_offset, self.width, self.height))

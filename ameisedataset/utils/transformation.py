@@ -7,6 +7,7 @@ from ameisedataset.data import Pose, CameraInformation, LidarInformation, Image
 
 
 def rectify_image(image: Image, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
+    """Rectify the provided image using camera information."""
     # Init and calculate rectification matrix
     mapx, mapy = cv2.initUndistortRectifyMap(cameraMatrix=camera_information.camera_mtx,
                                              distCoeffs=camera_information.distortion_mtx[:-1],
@@ -28,6 +29,7 @@ def rectify_image(image: Image, camera_information: CameraInformation, crop=Fals
 
 
 def invert_transformation(T):
+    """Invert the given transformation matrix."""
     R = T[:3, :3]
     t = T[:3, 3]
     T_inv = np.eye(4)
@@ -67,29 +69,23 @@ def create_transformation_matrix(translation, rotation):
 
 
 def get_transformation_matrix(pitch, yaw, roll, x, y, z):
-    # Erstelle die Rotationsmatrizen
+    """Retrieve the transformation matrix based on provided parameters."""
     R_yaw = np.array([
         [np.cos(yaw), -np.sin(yaw), 0],
         [np.sin(yaw), np.cos(yaw), 0],
         [0, 0, 1]
     ])
-
     R_pitch = np.array([
         [np.cos(pitch), 0, np.sin(pitch)],
         [0, 1, 0],
         [-np.sin(pitch), 0, np.cos(pitch)]
     ])
-
     R_roll = np.array([
         [1, 0, 0],
         [0, np.cos(roll), -np.sin(roll)],
         [0, np.sin(roll), np.cos(roll)]
     ])
-
-    # Kombiniere die Rotationsmatrizen
     R = np.dot(R_yaw, np.dot(R_pitch, R_roll))
-
-    # Erstelle die 4x4 Transformationsmatrix
     T = np.eye(4)
     T[:3, :3] = R
     T[:3, 3] = [x, y, z]
@@ -100,24 +96,25 @@ def get_transformation_matrix(pitch, yaw, roll, x, y, z):
 
 
 def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation):
+    """Retrieve the projection matrix based on provided parameters."""
     lidar_to_cam_tf_mtx = transform_to_sensor(lidar_info.extrinsic, cam_info.extrinsic)
     projection = []
     for point in pcloud:
         point = np.array(point.tolist()[:3])
-        # Transformiere den Punkt in das Kamerakoordinatensystem
+        # Transform points to new coordinate system
         point_in_camera = np.dot(lidar_to_cam_tf_mtx, np.append(point[:3], 1))  # Nehmen Sie nur die ersten 3 Koordinaten
-        # Überprüfen Sie, ob der Punkt vor der Kamera liegt
+        # check if pts are behind the camera
         if point_in_camera[2] <= 0:
             # projection.append((None, None))
             continue
         else:
-            # Projiziere den Punkt auf die Bildebene
             pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])
             projection.append((int(pixel[0] / pixel[2]), int(pixel[1] / pixel[2])))
     return projection
 
 
 def transform_to_sensor(sensor1: Pose, sensor2: Pose):
+    """Transform the data to the sensor's coordinate frame."""
     # Creating transformation matrices
     t1 = create_transformation_matrix(sensor1.xyz, sensor1.rpy)
     t2 = create_transformation_matrix(sensor2.xyz, sensor2.rpy)

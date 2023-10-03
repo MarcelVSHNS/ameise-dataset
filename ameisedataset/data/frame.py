@@ -1,6 +1,4 @@
-import zlib
 import dill
-import cv2
 from decimal import Decimal
 import numpy as np
 from PIL import Image as PilImage
@@ -35,88 +33,138 @@ def _convert_unix_to_utc(unix_timestamp_ns: Decimal, utc_offset_hours: int = 2) 
 
 
 class Image:
-    """ Represents an image along with its metadata.
+    """
+    Represents an image along with its metadata.
     Attributes:
-        timestamp (str): timestamp of the image as UNIX.
+        timestamp (str): Timestamp of the image as UNIX.
         image (PilImage): The actual image data.
-    Methods:
-        get_timestamp: Returns the UTC timestamp of the image.
-        from_bytes: Class method to create an Image instance from byte data.
     """
     def __init__(self, image: PilImage = None, timestamp: Decimal = '0'):
+        """
+        Initializes the Image object with the provided image data and timestamp.
+        Parameters:
+            image (PilImage, optional): The actual image data. Defaults to None.
+            timestamp (Decimal, optional): Timestamp of the image as UNIX. Defaults to '0'.
+        """
         self.image: PilImage = image
         self.timestamp: Decimal = timestamp
 
     def __getattr__(self, attr) -> PilImage:
-        """For a direct call of the variable, it returns the image"""
+        """
+        Enables direct access to attributes of the `image` object.
+        Parameters:
+            attr (str): Name of the attribute to access.
+        Returns:
+            PilImage: Attribute value if it exists in the `image` object.
+        Raises:
+            AttributeError: If the attribute does not exist.
+        """
         if hasattr(self.image, attr):
             return getattr(self.image, attr)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
 
-    def get_timestamp(self, utc=2):
-        """ Get the UTC timestamp of the image.
-        Args:
-            utc (int, optional): Timezone offset in hours. Default is 2.
-        Returns:
-            str: The UTC timestamp of the image.
-        """
-        return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
-
     @classmethod
     def from_bytes(cls, data_bytes: bytes, ts_data: bytes, shape: Tuple[int, int]):
-        """ Create an Image instance from byte data.
+        """
+        Creates an Image instance from byte data.
         Args:
             data_bytes (bytes): Byte data of the image.
             ts_data (bytes): Serialized timestamp data associated with the image.
-            shape (Tuple[int, int]): width and height as Tuple.
+            shape (Tuple[int, int]): Dimensions of the image as (width, height).
         Returns:
-            Image: An instance of the Image class.
+            Image: An instance of the Image class populated with the provided data.
         """
         img_instance = cls()
         img_instance.timestamp = Decimal(ts_data.decode('utf-8'))
         img_instance.image = PilImage.frombytes("RGB", shape, data_bytes)
         return img_instance
 
+    def get_timestamp(self, utc=2):
+        """
+        Retrieves the UTC timestamp of the points.
+        Args:
+            utc (int, optional): Timezone offset in hours. Default is 2.
+        Returns:
+            str: The UTC timestamp of the points.
+        """
+        return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
+
 
 class Points:
+    """
+    Represents a collection of points with an associated timestamp.
+    Attributes:
+        points (np.array): Array containing the points.
+        timestamp (Decimal): Timestamp associated with the points.
+    """
     def __init__(self, points: np.array = np.array([]), timestamp: Decimal = '0'):
+        """
+        Initializes the Points object with the provided points and timestamp.
+        Parameters:
+            points (np.array, optional): Array containing the points. Defaults to an empty array.
+            timestamp (Decimal, optional): Timestamp associated with the points. Defaults to '0'.
+        """
         self.points: np.array = points
         self.timestamp: Decimal = timestamp
 
     def __getattr__(self, attr) -> np.array:
-        """For a direct call of the variable, it returns the image"""
+        """
+        Enables direct access to attributes of the `points` object.
+        Parameters:
+            attr (str): Name of the attribute to access.
+        Returns:
+            np.array: Attribute value if it exists.
+        Raises:
+            AttributeError: If the attribute does not exist.
+        """
         if hasattr(self.points, attr):
             return getattr(self.points, attr)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
 
     @classmethod
     def from_bytes(cls, data_bytes: bytes, ts_data: bytes, dtype: np.dtype):
+        """
+        Creates a Points instance from byte data.
+        Parameters:
+            data_bytes (bytes): Byte data representing the points.
+            ts_data (bytes): Byte data representing the timestamp.
+            dtype (np.dtype): Data type of the points.
+        Returns:
+            Points: A Points instance initialized with the provided data.
+        """
         img_instance = cls()
         img_instance.timestamp = Decimal(ts_data.decode('utf-8'))
         img_instance.points = np.frombuffer(data_bytes, dtype=dtype)
         return img_instance
 
     def get_timestamp(self, utc=2):
-        """ Get the UTC timestamp of the image.
+        """
+        Retrieves the UTC timestamp of the points.
         Args:
             utc (int, optional): Timezone offset in hours. Default is 2.
         Returns:
-            str: The UTC timestamp of the image.
+            str: The UTC timestamp of the points.
         """
         return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
 
 
 class Frame:
-    """ Represents a frame containing both images and points.
+    """
+    Represents a frame containing both images and points.
     Attributes:
         frame_id (int): Unique identifier for the frame.
         timestamp (str): Timestamp associated with the frame.
         cameras (List[Image]): List of images associated with the frame.
-        lidar (List[np.array]): List of point data associated with the frame.
-    Methods:
-        from_bytes: Class method to create a Frame instance from compressed byte data.
+        lidar (List[Points]): List of point data associated with the frame.
     """
     def __init__(self, frame_id: int, timestamp: Decimal):
+        """
+        Initializes the Frame object with the provided frame ID and timestamp.
+        Sets default values for cameras and lidar attributes.
+        Parameters:
+            frame_id (int): Unique identifier for the frame.
+            timestamp (Decimal): Timestamp associated with the frame.
+        """
         self.frame_id: int = frame_id
         self.timestamp: Decimal = timestamp
         self.cameras: List[Image] = [Image()] * NUM_CAMERAS
@@ -124,10 +172,11 @@ class Frame:
 
     @classmethod
     def from_bytes(cls, data, meta_info):
-        """ Create a Frame instance from compressed byte data.
+        """
+        Creates a Frame instance from compressed byte data.
         Args:
             data (bytes): Compressed byte data representing the frame.
-            meta_info (Infos): Data type of the points.
+            meta_info (Infos): Metadata information about the frame's data types.
         Returns:
             Frame: An instance of the Frame class.
         """
@@ -173,6 +222,11 @@ class Frame:
         return frame_instance
 
     def to_bytes(self):
+        """
+        Converts the Frame instance to compressed byte data.
+        Returns:
+            bytes: Compressed byte representation of the Frame.
+        """
         # convert data to bytes
         image_bytes = b""
         laser_bytes = b""
@@ -210,6 +264,13 @@ class Frame:
         return compressed_data_len + compressed_data_checksum + combined_data
 
     def get_data_lists(self) -> Tuple[List[int], List[int]]:
+        """
+        Retrieves indices of cameras and lidars based on specific conditions.
+        Returns:
+            Tuple[List[int], List[int]]:
+                - First list contains indices of cameras with non-null images.
+                - Second list contains indices of lidar data with non-zero size.
+        """
         camera_indices = [idx for idx, image in enumerate(self.cameras) if image.image is not None]
         lidar_indices = [idx for idx, array in enumerate(self.lidar) if array.size != 0]
         return camera_indices, lidar_indices
