@@ -117,13 +117,32 @@ class LidarInformation:
         lidar_to_sensor_transform: Transformation matrix from the LiDAR to the sensor.
         type: Product line or type of the LiDAR sensor.
     """
-    def __init__(self, name=""):
+    ouster_datatype_structure = {
+        'names': [
+            'x',            # x-coordinate of the point
+            'y',            # y-coordinate of the point
+            'z',            # z-coordinate of the point
+            'intensity',    # Intensity of the point
+            't',            # Time after the frame timestamp in ns
+            'reflectivity', # Reflectivity of the point
+            'ring',         # Ring number (for multi-beam LiDARs)
+            'ambient',      # Ambient light intensity
+            'range'         # Distance from the LiDAR sensor to the measured point (hypotenuse) in mm.
+        ],
+        'formats': ['<f4', '<f4', '<f4', '<f4', '<u4', '<u2', '<u2', '<u2', '<u4'],
+        'offsets': [0, 4, 8, 16, 20, 24, 26, 28, 32],
+        'itemsize': 48
+    }
+
+    def __init__(self, name: str = "", dtype: str = "ouster"):
         """ Initialize a LidarInformation instance with a given name.
         Args:
             name (str): Name of the LiDAR sensor.
         """
         self.name: str = name
-        self.dtype = None
+        if dtype == "ouster":
+            dtype = LidarInformation.ouster_datatype_structure
+        self.dtype = np.dtype(dtype)
         self.beam_altitude_angles = None
         self.beam_azimuth_angles = None
         self.lidar_origin_to_beam_origin_mm = None
