@@ -95,7 +95,7 @@ def get_transformation_matrix(pitch, yaw, roll, x, y, z):
     return T
 
 
-def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation):
+def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation, get_valid_only=True):
     """Retrieve the projection matrix based on provided parameters."""
     lidar_to_cam_tf_mtx = transform_to_sensor(lidar_info.extrinsic, cam_info.extrinsic)
     projection = []
@@ -104,12 +104,17 @@ def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation
         # Transform points to new coordinate system
         point_in_camera = np.dot(lidar_to_cam_tf_mtx, np.append(point[:3], 1))  # Nehmen Sie nur die ersten 3 Koordinaten
         # check if pts are behind the camera
-        if point_in_camera[2] <= 0:
-            # projection.append((None, None))
-            continue
+        pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])
+        u, v = int(pixel[0] / pixel[2]), int(pixel[1] / pixel[2])
+        if get_valid_only:
+            if point_in_camera[2] <= 0:
+                projection.append(None)
+            elif 0 <= u < cam_info.shape[0] and 0 <= v < cam_info.shape[1]:
+                projection.append((u, v))
+            else:
+                projection.append(None)
         else:
-            pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])
-            projection.append((int(pixel[0] / pixel[2]), int(pixel[1] / pixel[2])))
+            projection.append((u, v))
     return projection
 
 
