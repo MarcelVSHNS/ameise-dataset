@@ -19,5 +19,5 @@ pip install ameise
 
 ## Getting Started
 
-To get started with the dataset, you can refer to the [GettingStarted.ipynb](https://github.com/MarcelVSHNS/ameise-dataset/blob/main/GettingStarted.ipynb) notebook provided in the repository. 
+To get started with the dataset, you can refer to the [GettingStarted.ipynb](https://colab.research.google.com/drive/1p2cw3bSZ6B798qQ2jVnpvKQI5pv_-y_D?usp=sharing) notebook provided in the repository. 
 This notebook will guide you through the basic functionalities and usage of the dataset.
