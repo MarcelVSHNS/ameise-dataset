@@ -127,3 +127,36 @@ def transform_to_sensor(sensor1: Pose, sensor2: Pose):
     # Computing the transformation from the second sensor (new origin) to the first sensor
     t2_to_1 = np.dot(np.linalg.inv(t2), t1)
     return t2_to_1
+
+
+def create_disparity_map(image1: Image, image2: Image) -> np.ndarray:
+    """
+    Create a disparity map from two rectified images.
+    Parameters:
+    - image1: First image as a PIL Image.
+    - image2: Second image as a PIL Image.
+    Returns:
+    - Disparity map as a numpy array.
+    """
+    # Convert PIL images to numpy arrays
+    img1 = np.array(image1.convert('L'))  # Convert to grayscale
+    img2 = np.array(image2.convert('L'))  # Convert to grayscale
+    # Create the block matching algorithm with high-quality settings
+    stereo = cv2.StereoSGBM_create(
+        minDisparity=0,
+        numDisparities=128,         # Depending on the camera setup, this might need to be increased.
+        blockSize=5,                # Smaller block size can detect finer details.
+        P1=8 * 3 * 5 ** 2,          # Control smoothness of the disparity. Adjust as needed.
+        P2=32 * 3 * 5 ** 2,         # Control smoothness. This is usually larger than P1.
+        disp12MaxDiff=1,            # Controls maximum allowed difference in disparity check.
+        uniquenessRatio=15,         # Controls uniqueness. Higher can mean more robustness against noise.
+        speckleWindowSize=100,
+        speckleRange=32,
+        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY  # Utilizes 3-way dynamic programming. May provide more robust results.
+    )
+    # Compute the disparity map
+    disparity = stereo.compute(img1, img2)
+    # Normalize for better visualization
+    disparity = cv2.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    return disparity
+
