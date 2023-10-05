@@ -2,6 +2,7 @@ from typing import List
 from PIL import Image as PilImage
 import numpy as np
 import cv2
+from typing import Tuple, List
 
 from ameisedataset.data import Pose, CameraInformation, LidarInformation, Image
 
@@ -95,27 +96,32 @@ def get_transformation_matrix(pitch, yaw, roll, x, y, z):
     return T
 
 
-def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation, get_valid_only=True):
+def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation, get_valid_only=True,
+                          dtype_points_return=None) -> Tuple[np.array, List[Tuple]]:
     """Retrieve the projection matrix based on provided parameters."""
+    if dtype_points_return is None:
+        dtype_points_return = ['x', 'y', 'z', 'intensity', 'range']
     lidar_to_cam_tf_mtx = transform_to_sensor(lidar_info.extrinsic, cam_info.extrinsic)
     projection = []
+    points = []
     for point in pcloud:
-        point = np.array(point.tolist()[:3])
+        point_vals = np.array(point.tolist()[:3])
         # Transform points to new coordinate system
-        point_in_camera = np.dot(lidar_to_cam_tf_mtx, np.append(point[:3], 1))  # Nehmen Sie nur die ersten 3 Koordinaten
+        point_in_camera = np.dot(lidar_to_cam_tf_mtx, np.append(point_vals[:3], 1))  # Nehmen Sie nur die ersten 3 Koordinaten
         # check if pts are behind the camera
         pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])
         u, v = int(pixel[0] / pixel[2]), int(pixel[1] / pixel[2])
         if get_valid_only:
             if point_in_camera[2] <= 0:
-                projection.append(None)
+                continue
             elif 0 <= u < cam_info.shape[0] and 0 <= v < cam_info.shape[1]:
                 projection.append((u, v))
+                points.append(point[dtype_points_return])
             else:
-                projection.append(None)
+                continue
         else:
             projection.append((u, v))
-    return projection
+    return np.array(points, dtype=points[0].dtype), projection
 
 
 def transform_to_sensor(sensor1: Pose, sensor2: Pose):
