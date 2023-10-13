@@ -135,18 +135,19 @@ def transform_to_sensor(sensor1: Pose, sensor2: Pose):
     return t2_to_1
 
 
-def create_disparity_map(image1: Image, image2: Image) -> np.ndarray:
+def create_stereo_image(image_left: Image, image_right: Image, cam_right_info: CameraInformation) -> np.ndarray:
     """
     Create a disparity map from two rectified images.
     Parameters:
-    - image1: First image as a PIL Image.
-    - image2: Second image as a PIL Image.
+    - image_left: First image as a PIL Image.
+    - image_right: Second image as a PIL Image.
+    - cam_right_info: Camera Info object
     Returns:
-    - Disparity map as a numpy array.
+    - Depth map as a numpy array.
     """
     # Convert PIL images to numpy arrays
-    img1 = np.array(image1.convert('L'))  # Convert to grayscale
-    img2 = np.array(image2.convert('L'))  # Convert to grayscale
+    img1 = np.array(image_left.convert('L'))  # Convert to grayscale
+    img2 = np.array(image_right.convert('L'))  # Convert to grayscale
     # Create the block matching algorithm with high-quality settings
     stereo = cv2.StereoSGBM_create(
         minDisparity=0,
@@ -164,5 +165,9 @@ def create_disparity_map(image1: Image, image2: Image) -> np.ndarray:
     disparity = stereo.compute(img1, img2)
     # Normalize for better visualization
     disparity = cv2.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    return disparity
-
+    # To avoid division by zero, set disparity values of 0 to a small value
+    safe_disparity = np.where(disparity == 0, 0.000001, disparity)
+    f = cam_right_info.focal_length
+    b = abs(cam_right_info.stereo_transform.translation[0]) * 10 ** 3
+    depth_map = f * b / safe_disparity
+    return depth_map
