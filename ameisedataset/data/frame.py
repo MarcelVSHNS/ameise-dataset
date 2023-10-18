@@ -32,6 +32,41 @@ def _convert_unix_to_utc(unix_timestamp_ns: Decimal, utc_offset_hours: int = 2) 
     return formatted_time + extended_precision
 
 
+def _read_data_block(data, offset):
+    data_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
+    offset += INT_LENGTH
+    data_bytes = data[offset:offset + data_len]
+    offset += data_len
+    return data_bytes, offset
+
+class Position:
+    def __init__(self):
+        self.timestamp: Decimal = Decimal('0')
+        self.status: int = 0
+        self.services = {
+            'GPS': False,
+            'Glonass': False,
+            'Galileo': False,
+            'Baidou': False
+        }
+        self.latitude: Decimal = Decimal('0')
+        self.longitude: Decimal = Decimal('0')
+        self.altitude: Decimal = Decimal('0')
+        self.covariance: np.array = np.array([])
+        self.covariance_type: int = 0
+
+    def __iter__(self):
+        return iter((self.latitude, self.longitude, self.timestamp))
+
+    def to_bytes(self) -> bytes:
+        gnss_bytes = dill.dumps(self)
+        gnss_bytes_len = len(gnss_bytes).to_bytes(INT_LENGTH, 'big')
+        return gnss_bytes_len + gnss_bytes
+
+    @classmethod
+    def from_bytes(cls, gnss_data: bytes):
+        return dill.loads(gnss_data)
+
 class Image:
     """
     Represents an image along with its metadata.
@@ -63,6 +98,15 @@ class Image:
             return getattr(self.image, attr)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
 
+    def to_bytes(self) -> bytes:
+        encoded_img = self.image.tobytes()
+        encoded_ts = str(self.timestamp).encode('utf-8')
+        img_len = len(encoded_img).to_bytes(4, 'big')
+        ts_len = len(encoded_ts).to_bytes(4, 'big')
+        image_bytes = img_len + encoded_img + ts_len + encoded_ts
+        return image_bytes
+
+
     @classmethod
     def from_bytes(cls, data_bytes: bytes, ts_data: bytes, shape: Tuple[int, int]):
         """
@@ -88,6 +132,8 @@ class Image:
             str: The UTC timestamp of the points.
         """
         return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
+
+
 
 
 class Points:
@@ -120,6 +166,14 @@ class Points:
         if hasattr(self.points, attr):
             return getattr(self.points, attr)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
+
+    def to_bytes(self) -> bytes:
+        encoded_pts = self.points.tobytes()
+        encoded_ts = str(self.timestamp).encode('utf-8')
+        pts_len = len(encoded_pts).to_bytes(4, 'big')
+        ts_len = len(encoded_ts).to_bytes(4, 'big')
+        laser_bytes = pts_len + encoded_pts + ts_len + encoded_ts
+        return laser_bytes
 
     @classmethod
     def from_bytes(cls, data_bytes: bytes, ts_data: bytes, dtype: np.dtype):
@@ -169,6 +223,7 @@ class Frame:
         self.timestamp: Decimal = timestamp
         self.cameras: List[Image] = [Image()] * NUM_CAMERAS
         self.lidar: List[Points] = [Points()] * NUM_LIDAR
+        self.gnss: Position = Position()
 
     @classmethod
     def from_bytes(cls, data, meta_info):
@@ -191,33 +246,25 @@ class Frame:
             # Check if the info name corresponds to a Camera type
             if Camera.is_type_of(info_name.upper()):
                 # Extract image length and data
-                img_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
-                offset += INT_LENGTH
-                camera_img_bytes = data[offset:offset + img_len]
-                offset += img_len
+                camera_img_bytes, offset = _read_data_block(data, offset)
                 # Extract timestamp
-                ts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
-                offset += INT_LENGTH
-                ts_data = data[offset:offset + ts_len]
-                offset += ts_len
+                ts_img_bytes, offset = _read_data_block(data, offset)
                 # Create Image instance and store it in the frame instance
-                frame_instance.cameras[Camera[info_name.upper()]] = Image.from_bytes(camera_img_bytes, ts_data,
+                frame_instance.cameras[Camera[info_name.upper()]] = Image.from_bytes(camera_img_bytes, ts_img_bytes,
                                                                                      meta_info.cameras[Camera[info_name.upper()]].shape)
             # Check if the info name corresponds to a Lidar type
             elif Lidar.is_type_of(info_name.upper()):
                 # Extract points length and data
-                pts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
-                offset += INT_LENGTH
-                laser_pts_bytes = data[offset:offset + pts_len]
-                offset += pts_len
+                laser_pts_bytes, offset = _read_data_block(data, offset)
                 # extract timestamp
-                ts_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
-                offset += INT_LENGTH
-                ts_data = data[offset:offset + ts_len]
+                ts_laser_bytes, offset = _read_data_block(data, offset)
                 # Create Points instance and store it in the frame instance
                 # .lidar[Lidar.OS1_TOP].dtype
-                frame_instance.lidar[Lidar[info_name.upper()]] = Points.from_bytes(laser_pts_bytes, ts_data,
+                frame_instance.lidar[Lidar[info_name.upper()]] = Points.from_bytes(laser_pts_bytes, ts_laser_bytes,
                                                                                    dtype=meta_info.lidar[Lidar[info_name.upper()]].dtype)
+            elif info_name.upper() == 'GNSS':
+                gnss_bytes, offset = _read_data_block(data, offset)
+                frame_instance.gnss = Position.from_bytes(gnss_bytes)
         # Return the fully populated frame instance
         return frame_instance
 
@@ -230,32 +277,31 @@ class Frame:
         # convert data to bytes
         image_bytes = b""
         laser_bytes = b""
-        camera_indices, lidar_indices = self.get_data_lists()
+        camera_indices, lidar_indices, gnss_available = self.get_data_lists()
         frame_info = [self.frame_id, self.timestamp]
         for data_index in camera_indices:
             frame_info.append(Camera.get_name_by_value(data_index))
         for data_index in lidar_indices:
             frame_info.append(Lidar.get_name_by_value(data_index))
+        if gnss_available:
+            frame_info.append("GNSS")
+            gnss_bytes = self.gnss.to_bytes()
+        else:
+            gnss_bytes = b""
         frame_info_bytes = dill.dumps(frame_info)
         frame_info_len = len(frame_info_bytes).to_bytes(4, 'big')
         # Encode images together with their time
         cam_msgs_to_write = [self.cameras[idx] for idx in camera_indices]
         for img_obj in cam_msgs_to_write:
-            encoded_img = img_obj.image.tobytes()
-            encoded_ts = str(img_obj.timestamp).encode('utf-8')
-            img_len = len(encoded_img).to_bytes(4, 'big')
-            ts_len = len(encoded_ts).to_bytes(4, 'big')
-            image_bytes += img_len + encoded_img + ts_len + encoded_ts
+            image_bytes += img_obj.to_bytes()
         # Encode laser points
         lidar_msgs_to_write = [self.lidar[idx] for idx in lidar_indices]
         for laser in lidar_msgs_to_write:
-            encoded_pts = laser.points.tobytes()
-            encoded_ts = str(laser.timestamp).encode('utf-8')
-            pts_len = len(encoded_pts).to_bytes(4, 'big')
-            ts_len = len(encoded_ts).to_bytes(4, 'big')
-            laser_bytes += pts_len + encoded_pts + ts_len + encoded_ts
+            laser_bytes += laser.to_bytes()
+
+
         # pack bytebuffer all together and compress them to one package
-        combined_data = frame_info_len + frame_info_bytes + image_bytes + laser_bytes
+        combined_data = frame_info_len + frame_info_bytes + image_bytes + laser_bytes + gnss_bytes
         # compressed_data = combined_data  #zlib.compress(combined_data)  # compress if something is compressable
         # calculate length and checksum
         compressed_data_len = len(combined_data).to_bytes(4, 'big')
@@ -263,7 +309,7 @@ class Frame:
         # return a header with the length and byteorder
         return compressed_data_len + compressed_data_checksum + combined_data
 
-    def get_data_lists(self) -> Tuple[List[int], List[int]]:
+    def get_data_lists(self) -> Tuple[List[int], List[int], bool]:
         """
         Retrieves indices of cameras and lidars based on specific conditions.
         Returns:
@@ -273,4 +319,5 @@ class Frame:
         """
         camera_indices = [idx for idx, image in enumerate(self.cameras) if image.image is not None]
         lidar_indices = [idx for idx, array in enumerate(self.lidar) if array.size != 0]
-        return camera_indices, lidar_indices
+        gnss_available = True if self.gnss.status != -1 else False
+        return camera_indices, lidar_indices, gnss_available
