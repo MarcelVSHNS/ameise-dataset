@@ -39,6 +39,7 @@ def _read_data_block(data, offset):
     offset += data_len
     return data_bytes, offset
 
+
 class Position:
     def __init__(self):
         self.timestamp: Decimal = Decimal('0')
@@ -66,6 +67,7 @@ class Position:
     @classmethod
     def from_bytes(cls, gnss_data: bytes):
         return dill.loads(gnss_data)
+
 
 class Image:
     """
@@ -106,7 +108,6 @@ class Image:
         image_bytes = img_len + encoded_img + ts_len + encoded_ts
         return image_bytes
 
-
     @classmethod
     def from_bytes(cls, data_bytes: bytes, ts_data: bytes, shape: Tuple[int, int]):
         """
@@ -132,8 +133,6 @@ class Image:
             str: The UTC timestamp of the points.
         """
         return _convert_unix_to_utc(self.timestamp, utc_offset_hours=utc)
-
-
 
 
 class Points:
@@ -239,6 +238,7 @@ class Frame:
         frame_info_len = int.from_bytes(data[:INT_LENGTH], 'big')
         frame_info_bytes = data[INT_LENGTH:INT_LENGTH + frame_info_len]
         frame_info = dill.loads(frame_info_bytes)
+        # [self.frame_id, self.timestamp]
         frame_instance = cls(frame_info[0], frame_info[1])
         # Initialize offset for further data extraction
         offset = INT_LENGTH + frame_info_len

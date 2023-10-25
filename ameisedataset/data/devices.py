@@ -24,8 +24,11 @@ class Infos:
         """
         self.filename: str = filename
         self.SHA256: str = ""
+        #TODO: Implement version of ad
+        self.version: float = 0.0
         self.cameras: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
         self.lidar: List[LidarInformation] = [LidarInformation()] * NUM_LIDAR
+        self.gnss: GNSSInformation = GNSSInformation()
 
     def get_info_lists(self) -> Tuple[List[int], List[int]]:
         """
@@ -37,7 +40,25 @@ class Infos:
         """
         camera_indices = [idx for idx, item in enumerate(self.cameras) if item.shape[0] != 0]
         lidar_indices = [idx for idx, item in enumerate(self.lidar) if item.dtype is not None]
-        return camera_indices, lidar_indices
+        gnss_available = True if self.gnss.name != '' else False
+        return camera_indices, lidar_indices, gnss_available
+
+
+class GNSSInformation:
+    def __init__(self, name: str = ''):
+        self.name: str = name
+
+    def to_bytes(self) -> bytes:
+
+        info_bytes = dill.dumps(self)
+        info_bytes_len = len(info_bytes).to_bytes(INT_LENGTH, 'big')
+        info_bytes_checksum = compute_checksum(info_bytes)
+        return info_bytes_len + info_bytes_checksum + info_bytes
+
+    @classmethod
+    def from_bytes(cls, info_data: bytes):
+
+        return dill.loads(info_data)
 
 
 class CameraInformation:
