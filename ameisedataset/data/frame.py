@@ -299,15 +299,14 @@ class Frame:
         for laser in lidar_msgs_to_write:
             laser_bytes += laser.to_bytes()
 
-
         # pack bytebuffer all together and compress them to one package
         combined_data = frame_info_len + frame_info_bytes + image_bytes + laser_bytes + gnss_bytes
         # compressed_data = combined_data  #zlib.compress(combined_data)  # compress if something is compressable
         # calculate length and checksum
-        compressed_data_len = len(combined_data).to_bytes(4, 'big')
-        compressed_data_checksum = compute_checksum(combined_data)
+        combined_data_len = len(combined_data).to_bytes(4, 'big')
+        combined_data_checksum = compute_checksum(combined_data)
         # return a header with the length and byteorder
-        return compressed_data_len + compressed_data_checksum + combined_data
+        return combined_data_len + combined_data_checksum + combined_data
 
     def get_data_lists(self) -> Tuple[List[int], List[int], bool]:
         """
@@ -319,5 +318,6 @@ class Frame:
         """
         camera_indices = [idx for idx, image in enumerate(self.cameras) if image.image is not None]
         lidar_indices = [idx for idx, array in enumerate(self.lidar) if array.size != 0]
+        # TODO: Daten werden nicht geschrieben auch wenn sie da sind, nur weil satus -1 is: ist das gewollt? sinnhaftigkeit wegen complete frames? error handling?
         gnss_available = True if self.gnss.status != -1 else False
         return camera_indices, lidar_indices, gnss_available
