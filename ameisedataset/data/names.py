@@ -53,3 +53,11 @@ class Lidar(metaclass=InfoBaseClass):
     OS0_LEFT = 0
     OS1_TOP = 1
     OS0_RIGHT = 2
+
+
+class IMU(metaclass=InfoBaseClass):
+
+    OS0_LEFT_IMU = 0
+    OS1_TOP_IMU = 1
+    OS0_RIGHT_IMU = 2
+
