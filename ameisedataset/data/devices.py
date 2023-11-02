@@ -24,10 +24,13 @@ class Infos:
         """
         self.filename: str = filename
         self.SHA256: str = ""
+        #TODO: Implement version of ad
+        self.version: float = 0.0
         self.cameras: List[CameraInformation] = [CameraInformation()] * NUM_CAMERAS
         self.lidar: List[LidarInformation] = [LidarInformation()] * NUM_LIDAR
+        self.gnss: GNSSInformation = GNSSInformation()
 
-    def get_info_lists(self) -> Tuple[List[int], List[int]]:
+    def get_info_lists(self) -> Tuple[List[int], List[int], bool]:
         """
         Retrieves indices of cameras and lidars based on specific conditions.
         Returns:
@@ -36,8 +39,54 @@ class Infos:
                 - Second list contains indices of lidars with defined dtype.
         """
         camera_indices = [idx for idx, item in enumerate(self.cameras) if item.shape[0] != 0]
-        lidar_indices = [idx for idx, item in enumerate(self.lidar) if item.dtype is not None]
-        return camera_indices, lidar_indices
+        lidar_indices = [idx for idx, item in enumerate(self.lidar) if item.name != '']
+        gnss_available = True if self.gnss.name != '' else False
+        return camera_indices, lidar_indices, gnss_available
+
+    def to_bytes(self):
+        available_cam_info, available_lidar_info, available_gnss_info = self.get_info_lists()
+        cam_info_to_write = [self.cameras[idx] for idx in available_cam_info]
+        lidar_info_to_write = [self.lidar[idx] for idx in available_lidar_info]
+        gnss_info_to_write = []
+        if available_gnss_info:
+            gnss_info_to_write.append(self.gnss)
+
+        chunk_info = []
+        sensor_info_array = cam_info_to_write + lidar_info_to_write + gnss_info_to_write
+
+        for sensor in sensor_info_array:
+            chunk_info.append(sensor.name)
+
+        chunk_info_bytes = dill.dumps(chunk_info)
+        chunk_info_len = len(chunk_info_bytes).to_bytes(4, 'big')
+        info_bytes = dill.dumps(self)
+        info_len = len(info_bytes).to_bytes(4, 'big')
+
+        combined_info = chunk_info_len + chunk_info_bytes + info_len + info_bytes
+
+        combined_info_len = len(combined_info).to_bytes(4, 'big')
+        combined_data_checksum = compute_checksum(combined_info)
+
+        return combined_info_len + combined_data_checksum + combined_info
+
+    @classmethod
+    def from_bytes(cls, data):
+        chunk_info_len = int.from_bytes(data[:INT_LENGTH], 'big')
+        chunk_info_bytes = data[INT_LENGTH:INT_LENGTH + chunk_info_len]
+        chunk_info = dill.loads(chunk_info_bytes)
+
+        offset = INT_LENGTH + chunk_info_len
+        info_len = int.from_bytes(data[offset:offset + INT_LENGTH], 'big')
+        offset += INT_LENGTH
+        info_bytes = data[offset:offset + info_len]
+        info = dill.loads(info_bytes)
+
+        return chunk_info, info
+
+
+class GNSSInformation:
+    def __init__(self, name: str = ''):
+        self.name: str = name
 
 
 class CameraInformation:
@@ -93,26 +142,6 @@ class CameraInformation:
                                       y_off=cam_info_msg.roi.y_offset,
                                       height=cam_info_msg.roi.height,
                                       width=cam_info_msg.roi.width)
-
-    def to_bytes(self) -> bytes:
-        """ Serialize the CameraInformation instance to bytes.
-        Returns:
-            bytes: Serialized byte representation of the CameraInformation instance.
-        """
-        info_bytes = dill.dumps(self)
-        info_bytes_len = len(info_bytes).to_bytes(INT_LENGTH, 'big')
-        info_bytes_checksum = compute_checksum(info_bytes)
-        return info_bytes_len + info_bytes_checksum + info_bytes
-
-    @classmethod
-    def from_bytes(cls, info_data: bytes):
-        """ Create a CameraInformation instance from byte data.
-        Args:
-            info_data (bytes): Serialized byte representation of a CameraInformation instance.
-        Returns:
-            CameraInformation: A CameraInformation instance populated with the provided byte data.
-        """
-        return dill.loads(info_data)
 
 
 class LidarInformation:
@@ -180,26 +209,6 @@ class LidarInformation:
         self.phase_lock_offset = data_dict["config_params"]["phase_lock_offset"]
         self.lidar_to_sensor_transform = data_dict["lidar_intrinsics"]["lidar_to_sensor_transform"]
         self.type = data_dict["sensor_info"]["prod_line"]
-
-    def to_bytes(self) -> bytes:
-        """ Serialize the LidarInformation instance to bytes.
-        Returns:
-            bytes: Serialized byte representation of the LidarInformation instance.
-        """
-        info_bytes = dill.dumps(self)
-        info_bytes_len = len(info_bytes).to_bytes(INT_LENGTH, 'big')
-        info_bytes_checksum = compute_checksum(info_bytes)
-        return info_bytes_len + info_bytes_checksum + info_bytes
-
-    @classmethod
-    def from_bytes(cls, info_data: bytes):
-        """ Create a LidarInformation instance from byte data.
-        Args:
-            info_data (bytes): Serialized byte representation of a LidarInformation instance.
-        Returns:
-            LidarInformation: A LidarInformation instance populated with the provided byte data.
-        """
-        return dill.loads(info_data)
 
 
 class Pose:
