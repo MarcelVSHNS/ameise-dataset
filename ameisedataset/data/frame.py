@@ -2,7 +2,7 @@ import dill
 from decimal import Decimal
 import numpy as np
 from PIL import Image as PilImage
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from datetime import datetime, timedelta, timezone
 from ameisedataset.data import Camera, Lidar, IMU
 from ameisedataset.miscellaneous import INT_LENGTH, NUM_CAMERAS, NUM_LIDAR, NUM_IMU, compute_checksum
@@ -55,81 +55,63 @@ class Serializable:
 
 
 class Motion:
-    def __init__(self):
-        self.timestamp: Optional[Decimal] = None
-        self.orientation: np.array = np.array([])
-        self.orientation_covariance: np.array = np.array([])
-        self.angular_velocity: np.array = np.array([])
-        self.angular_velocity_covariance: np.array([])
-        self.linear_acceleration: np.array = np.array([])
-        self.linear_acceleration_covariance: np.array = np.array([])
-
-    #TODO: Add typisierung? gibt halt zusätzlen import
-    def from_ros_msg(self, timestamp, ros_msg):
+    def __init__(self,
+                 timestamp: Optional[Decimal] = None,
+                 orientation: Optional[np.array] = None,
+                 orientation_covariance: Optional[np.array] = None,
+                 angular_velocity: Optional[np.array] = None,
+                 angular_velocity_covariance: Optional[np.array] = None,
+                 linear_acceleration: Optional[np.array] = None,
+                 linear_acceleration_covariance: Optional[np.array] = None):
         self.timestamp = timestamp
-        self.orientation = np.array([
-            getattr(ros_msg.orientation, attr) for attr in ['x', 'y', 'z', 'w']
-        ])
-        self.orientation_covariance = np.array(ros_msg.orientation_covariance).reshape((3, 3))
-        self.angular_velocity = np.array([
-            getattr(ros_msg.angular_velocity, attr) for attr in ['x', 'y', 'z']
-        ])
-        self.angular_velocity_covariance = np.array(ros_msg.angular_velocity_covariance).reshape((3, 3))
-        self.linear_acceleration = np.array([
-            getattr(ros_msg.linear_acceleration, attr) for attr in ['x', 'y', 'z']
-        ])
-        self.linear_acceleration_covariance = np.array(ros_msg.linear_acceleration_covariance).reshape((3, 3))
-        return self
+        self.orientation = orientation
+        self.orientation_covariance = orientation_covariance
+        self.angular_velocity = angular_velocity
+        self.angular_velocity_covariance = angular_velocity_covariance
+        self.linear_acceleration = linear_acceleration
+        self.linear_acceleration_covariance = linear_acceleration_covariance
 
 
 class Position:
-    def __init__(self):
-        self.timestamp: Optional[Decimal] = None
-        self.status: Optional[NavSatFixStatus] = None
-        self.services: dict[str, Optional[bool]] = {
-            'GPS': None,
-            'Glonass': None,
-            'Galileo': None,
-            'Baidou': None
-        }
-        self.latitude: Optional[Decimal] = None
-        self.longitude: Optional[Decimal] = None
-        self.altitude: Optional[Decimal] = None
-        self.covariance: np.array = np.array([])
-        self.covariance_type: Optional[CovarianceType] = None
+    class NavSatFixStatus(Enum):
+        NO_FIX = -1
+        FIX = 0
+        SBAS_FIX = 1
+        GBAS_FIX = 2
+
+    class CovarianceType(Enum):
+        UNKNOWN = 0
+        APPROXIMATED = 1
+        DIAGONAL_KNOWN = 2
+        KNOWN = 3
+
+    def __init__(self, timestamp: Optional[Decimal] = None, status: Optional[NavSatFixStatus] = None,
+                 services: Optional[Dict[str, Optional[bool]]] = None, latitude: Optional[Decimal] = None,
+                 longitude: Optional[Decimal] = None, altitude: Optional[Decimal] = None,
+                 covariance: Optional[np.array] = None, covariance_type: Optional[CovarianceType] = None):
+        self.timestamp = timestamp
+        self.status = status
+        self.services = self.init_services(services)
+        self.latitude = latitude
+        self.longitude = longitude
+        self.altitude = altitude
+        self.covariance = covariance
+        self.covariance_type = covariance_type
 
     def __iter__(self):
         return iter((self.latitude, self.longitude, self.timestamp))
 
-    def from_ros_msg(self, timestamp, ros_msg):
-        self.timestamp = timestamp  # Oder Decimal Umwandlung, falls nötig
-        self.status = NavSatFixStatus(ros_msg.status.status)
-        self.services['GPS'] = bool(ros_msg.status.service & 1)
-        self.services['Glonass'] = bool(ros_msg.status.service & 2)
-        self.services['Galileo'] = bool(ros_msg.status.service & 4)
-        self.services['Baidou'] = bool(ros_msg.status.service & 8)
-        self.latitude = Decimal(str(ros_msg.latitude))
-        self.longitude = Decimal(str(ros_msg.longitude))
-        self.altitude = Decimal(str(ros_msg.altitude))
-        self.covariance = np.array(ros_msg.position_covariance)
-        self.covariance_type = CovarianceType(ros_msg.position_covariance_type)
+    @staticmethod
+    def init_services(services):
+        default_services = {'GPS': None, 'Glonass': None, 'Galileo': None, 'Baidou': None}
+        if services is None:
+            return default_services
+        for key in default_services:
+            services.setdefault(key, default_services[key])
+        return services
 
 
-class NavSatFixStatus(Enum):
-    NO_FIX = -1
-    FIX = 0
-    SBAS_FIX = 1
-    GBAS_FIX = 2
-
-
-class CovarianceType(Enum):
-    UNKNOWN = 0
-    APPROXIMATED = 1
-    DIAGONAL_KNOWN = 2
-    KNOWN = 3
-
-
-#TODO: Umbenennen in Lidar/Camera/GNSS sonst passt logic nicht - cameras variable hält 4 image objekte sollte aber 4 camera objekte halten die jeweils unter anderem images enthalten
+# TODO: Umbenennen in Lidar/Camera/GNSS sonst passt logic nicht - cameras variable hält 4 image objekte sollte aber 4 camera objekte halten die jeweils unter anderem images enthalten
 class Image:
     """
     Represents an image along with its metadata.
