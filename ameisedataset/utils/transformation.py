@@ -7,7 +7,7 @@ from typing import Tuple, List
 from ameisedataset.data import Pose, CameraInformation, LidarInformation, Image
 
 
-def rectify_image(image: Image, camera_information: CameraInformation, crop=False, resize_to_original_size=True):
+def rectify_image(image: Image, camera_information: CameraInformation):
     """Rectify the provided image using camera information."""
     # Init and calculate rectification matrix
     mapx, mapy = cv2.initUndistortRectifyMap(cameraMatrix=camera_information.camera_mtx,
@@ -18,25 +18,8 @@ def rectify_image(image: Image, camera_information: CameraInformation, crop=Fals
                                              m1type=cv2.CV_16SC2)
     # Apply matrix
     rectified_image = cv2.remap(np.array(image.image), mapx, mapy, interpolation=cv2.INTER_LINEAR)
-    # Crop image if wanted
-    if crop:
-        x, y, h, w = camera_information.region_of_interest
-        rectified_image = rectified_image[y:y + h, x:x + w]
-        if resize_to_original_size:
-            rectified_image = cv2.resize(rectified_image, (1920, 1200))
-        else:
-            rectified_image = rectified_image
+
     return Image(PilImage.fromarray(rectified_image), image.timestamp)
-
-
-def invert_transformation(T):
-    """Invert the given transformation matrix."""
-    R = T[:3, :3]
-    t = T[:3, 3]
-    T_inv = np.eye(4)
-    T_inv[:3, :3] = R.T
-    T_inv[:3, 3] = -np.dot(R.T, t)
-    return T_inv
 
 
 def euler_to_rotation_matrix(roll, pitch, yaw):
@@ -69,48 +52,25 @@ def create_transformation_matrix(translation, rotation):
     return T
 
 
-def get_transformation_matrix(pitch, yaw, roll, x, y, z):
-    """Retrieve the transformation matrix based on provided parameters."""
-    R_yaw = np.array([
-        [np.cos(yaw), -np.sin(yaw), 0],
-        [np.sin(yaw), np.cos(yaw), 0],
-        [0, 0, 1]
-    ])
-    R_pitch = np.array([
-        [np.cos(pitch), 0, np.sin(pitch)],
-        [0, 1, 0],
-        [-np.sin(pitch), 0, np.cos(pitch)]
-    ])
-    R_roll = np.array([
-        [1, 0, 0],
-        [0, np.cos(roll), -np.sin(roll)],
-        [0, np.sin(roll), np.cos(roll)]
-    ])
-    R = np.dot(R_yaw, np.dot(R_pitch, R_roll))
-    T = np.eye(4)
-    T[:3, :3] = R
-    T[:3, 3] = [x, y, z]
-    print(T)
-    T = invert_transformation(T)
-    print(T)
-    return T
-
-
-def get_projection_matrix(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation, get_valid_only=True,
-                          dtype_points_return=None) -> Tuple[np.array, List[Tuple]]:
+def get_points_on_image(pcloud: List[np.ndarray], lidar_info: LidarInformation, cam_info: CameraInformation, get_valid_only=True,
+                        dtype_points_return=None) -> Tuple[np.array, List[Tuple]]:
     """Retrieve the projection matrix based on provided parameters."""
     if dtype_points_return is None:
         dtype_points_return = ['x', 'y', 'z', 'intensity', 'range']
     lidar_to_cam_tf_mtx = transform_to_sensor(lidar_info.extrinsic, cam_info.extrinsic)
+    rect_mtx = np.eye(4)
+    rect_mtx[:3, :3] = cam_info.rectification_mtx
+    proj_mtx = cam_info.projection_mtx
+
     projection = []
     points = []
     for point in pcloud:
         point_vals = np.array(point.tolist()[:3])
         # Transform points to new coordinate system
-        point_in_camera = np.dot(lidar_to_cam_tf_mtx, np.append(point_vals[:3], 1))  # Nehmen Sie nur die ersten 3 Koordinaten
+        point_in_camera = proj_mtx.dot(rect_mtx.dot(lidar_to_cam_tf_mtx.dot(np.append(point_vals[:3], 1))))
         # check if pts are behind the camera
-        pixel = np.dot(cam_info.camera_mtx, point_in_camera[:3])
-        u, v = int(pixel[0] / pixel[2]), int(pixel[1] / pixel[2])
+        u = point_in_camera[0] / point_in_camera[2]
+        v = point_in_camera[1] / point_in_camera[2]
         if get_valid_only:
             if point_in_camera[2] <= 0:
                 continue
@@ -135,18 +95,19 @@ def transform_to_sensor(sensor1: Pose, sensor2: Pose):
     return t2_to_1
 
 
-def create_disparity_map(image1: Image, image2: Image) -> np.ndarray:
+def create_stereo_image(image_left: Image, image_right: Image, cam_right_info: CameraInformation) -> np.ndarray:
     """
     Create a disparity map from two rectified images.
     Parameters:
-    - image1: First image as a PIL Image.
-    - image2: Second image as a PIL Image.
+    - image_left: First image as a PIL Image.
+    - image_right: Second image as a PIL Image.
+    - cam_right_info: Camera Info object
     Returns:
-    - Disparity map as a numpy array.
+    - Depth map as a numpy array.
     """
     # Convert PIL images to numpy arrays
-    img1 = np.array(image1.convert('L'))  # Convert to grayscale
-    img2 = np.array(image2.convert('L'))  # Convert to grayscale
+    img1 = np.array(image_left.convert('L'))  # Convert to grayscale
+    img2 = np.array(image_right.convert('L'))  # Convert to grayscale
     # Create the block matching algorithm with high-quality settings
     stereo = cv2.StereoSGBM_create(
         minDisparity=0,
@@ -164,5 +125,9 @@ def create_disparity_map(image1: Image, image2: Image) -> np.ndarray:
     disparity = stereo.compute(img1, img2)
     # Normalize for better visualization
     disparity = cv2.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    return disparity
-
+    # To avoid division by zero, set disparity values of 0 to a small value
+    safe_disparity = np.where(disparity == 0, 0.000001, disparity)
+    f = cam_right_info.focal_length
+    b = abs(cam_right_info.stereo_transform.translation[0]) * 10 ** 3
+    depth_map = f * b / safe_disparity
+    return depth_map
